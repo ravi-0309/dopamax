@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: dopamax
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true   # Render creates a strong random key for you
+      - key: DATABASE_URL
+        sync: false           # you paste your Supabase connection string here

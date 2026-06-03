@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ section_icon }} {{ section_name }}</div>
+    <div class="page-subtitle">Track tasks and habits in this category</div>
+  </div>
+  <div class="flex gap-2 items-center">
+    <a href="/edit_section/{{ section_name }}" class="btn btn-ghost btn-sm">✏️ Edit</a>
+    <span class="card-badge">{{ tasks|length }} tasks</span>
+  </div>
+</div>
+
+<!-- ADD TASK -->
+<div class="add-form-card mb-6">
+  <div class="add-form-title">➕ Add to {{ section_name }}</div>
+  <form action="/add_custom_task/{{ section_name }}" method="POST" id="add-task-form">
+
+    <!-- Task type selector -->
+    <div class="form-group" style="margin-bottom:14px;">
+      <label class="form-label">Task Type</label>
+      <div class="type-switch">
+        <label class="type-opt active">
+          <input type="radio" name="task_type" value="once" checked onchange="syncTaskType()"> ✅ One-time task
+        </label>
+        <label class="type-opt">
+          <input type="radio" name="task_type" value="rate" onchange="syncTaskType()"> 🔁 Repeatable (rate-based)
+        </label>
+      </div>
+      <div class="text-xs text-muted" style="margin-top:6px;" id="type-hint">
+        A task you complete once for a fixed reward.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Task Title</label>
+      <input type="text" name="title" placeholder="e.g. Run, Read 30 min, Submit report..." required>
+    </div>
+
+    <!-- ONE-TIME FIELDS -->
+    <div class="type-fields" id="fields-once">
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">⚡ Dopamine Reward</label>
+          <input type="number" step="0.1" name="dopamine_points" placeholder="5.0" min="0">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">🎁 Completion Bonus <span class="text-muted">(optional)</span></label>
+          <input type="number" step="0.1" name="completion_bonus" placeholder="0" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- RATE-BASED FIELDS -->
+    <div class="type-fields" id="fields-rate" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">📐 Rate</label>
+        <div class="rate-row">
+          <input type="number" step="0.1" name="rate_dopamine" placeholder="10" min="0" style="width:90px;">
+          <span class="rate-text">dopamine per</span>
+          <input type="number" step="0.1" name="rate_units" placeholder="1" min="0.01" style="width:90px;">
+          <input type="text" name="unit_name" placeholder="km" maxlength="16" style="width:120px;">
+        </div>
+        <div class="text-xs text-muted" style="margin-top:6px;">Example: <strong>10</strong> dopamine per <strong>1</strong> <strong>km</strong> — log "ran 5 km" and earn 50 dp.</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">🎁 Bonus per session <span class="text-muted">(optional)</span></label>
+          <input type="number" step="0.1" name="completion_bonus" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:14px;margin-bottom:0;">
+        <label class="form-label">🔥 Streak Reward <span class="text-muted">(optional)</span></label>
+        <div class="rate-row">
+          <span class="rate-text">Every</span>
+          <input type="number" name="streak_days" placeholder="7" min="0" style="width:80px;">
+          <span class="rate-text">consecutive days, award</span>
+          <input type="number" step="0.1" name="streak_bonus" placeholder="50" min="0" style="width:90px;">
+          <span class="rate-text">dp</span>
+        </div>
+        <div class="text-xs text-muted" style="margin-top:6px;">Leave the days at 0 to disable streak rewards.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-primary w-full">Add Task</button>
+    </div>
+  </form>
+</div>
+
+<!-- SUMMARY -->
+{% if tasks %}
+{% set done_tasks = tasks|selectattr('completed','equalto',1)|list|length %}
+{% set rate_tasks = tasks|selectattr('task_type','equalto','rate')|list|length %}
+<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:24px;">
+  <div class="stat-card accent">
+    <div class="stat-label">📋 Total</div>
+    <div class="stat-value accent">{{ tasks|length }}</div>
+    <div class="stat-meta">tasks</div>
+  </div>
+  <div class="stat-card cyan">
+    <div class="stat-label">🔁 Repeatable</div>
+    <div class="stat-value cyan">{{ rate_tasks }}</div>
+    <div class="stat-meta">rate-based</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">✅ Done</div>
+    <div class="stat-value green">{{ done_tasks }}</div>
+    <div class="stat-meta">one-time finished</div>
+  </div>
+</div>
+
+<div class="items-grid">
+  {% for task in tasks %}
+
+  {% if task.task_type == 'rate' %}
+  <!-- ===== REPEATABLE / RATE-BASED ===== -->
+  <div class="item-card">
+    <div class="item-card-header">
+      <div>
+        <div class="item-card-title">🔁 {{ task.title }}</div>
+        <div class="mt-2">
+          <span class="status-badge active">Repeatable</span>
+          {% if task.live_streak and task.live_streak > 0 %}
+          <span class="status-badge" style="background:rgba(240,128,64,0.15);color:#f08040;">🔥 {{ task.live_streak }}-day streak</span>
+          {% endif %}
+        </div>
+      </div>
+      <a href="/delete_custom_task/{{ task.id }}" class="btn btn-danger btn-sm"
+         onclick="return confirm('Delete this task?');">🗑️</a>
+    </div>
+
+    <div class="text-sm text-muted" style="margin:8px 0 12px;">
+      ⚡ {{ task.rate_dopamine }} dp per {{ task.rate_units }} {{ task.unit_name or 'units' }}
+      {% if task.completion_bonus and task.completion_bonus > 0 %} · 🎁 +{{ task.completion_bonus }} / log{% endif %}
+      {% if task.streak_days and task.streak_days > 0 %} · 🔥 +{{ task.streak_bonus }} every {{ task.streak_days }} days{% endif %}
+    </div>
+
+    <form action="/log_custom_task/{{ task.id }}" method="POST"
+          style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+      <input type="number" step="0.1" name="units" placeholder="0" min="0.1" required
+             style="flex:1;" aria-label="amount of {{ task.unit_name or 'units' }}">
+      <span class="text-sm text-muted">{{ task.unit_name or 'units' }}</span>
+      <button type="submit" class="btn btn-success btn-sm">＋ Log</button>
+    </form>
+
+    <div class="flex gap-2" style="font-size:0.72rem;color:var(--text-muted);">
+      <span class="font-mono">Σ {{ task.total_units|round(1) }} {{ task.unit_name or 'units' }}</span>
+      <span class="font-mono">· {{ task.log_count }} logs</span>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- ===== ONE-TIME TASK ===== -->
+  <div class="item-card {% if task.completed == 1 %}completed{% endif %}">
+    <div class="item-card-header">
+      <div>
+        <div class="item-card-title" style="{% if task.completed == 1 %}opacity:0.6; text-decoration:line-through;{% endif %}">
+          {{ task.title }}
+        </div>
+        <div class="mt-2">
+          {% if task.completed == 1 %}
+            <span class="status-badge done">✓ Completed</span>
+          {% else %}
+            <span class="status-badge active">⏳ Pending</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if task.completed == 0 %}
+      <a href="/delete_custom_task/{{ task.id }}" class="btn btn-danger btn-sm"
+         onclick="return confirm('Delete this task?');">🗑️</a>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2" style="margin:8px 0 14px;">
+      <span class="text-sm text-muted">Reward:</span>
+      <span class="dopamine-pill">⚡ {{ task.dopamine_points }} dp</span>
+      {% if task.completion_bonus and task.completion_bonus > 0 %}
+      <span class="dopamine-pill" style="background:rgba(240,192,64,0.15);">🎁 +{{ task.completion_bonus }}</span>
+      {% endif %}
+    </div>
+    {% if task.completed == 0 %}
+    <a href="/complete_custom_task/{{ task.id }}" class="btn btn-success btn-sm">✓ Complete Task</a>
+    {% else %}
+    <div class="text-xs" style="color:var(--success);">✓ Dopamine earned</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">{{ section_icon }}</div>
+    <div class="empty-title">No tasks yet</div>
+    <div class="empty-desc">Add a one-time task or a repeatable habit above.</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function syncTaskType() {
+  const type = document.querySelector('input[name="task_type"]:checked').value;
+  const once = document.getElementById('fields-once');
+  const rate = document.getElementById('fields-rate');
+  once.style.display = (type === 'once') ? 'block' : 'none';
+  rate.style.display = (type === 'rate') ? 'block' : 'none';
+  // Disable inputs in the hidden group so they aren't submitted (avoids duplicate field names)
+  once.querySelectorAll('input').forEach(i => i.disabled = (type !== 'once'));
+  rate.querySelectorAll('input').forEach(i => i.disabled = (type !== 'rate'));
+  document.getElementById('type-hint').textContent = (type === 'rate')
+    ? 'A habit you repeat — define a rate, then log work each time (e.g. running, reading).'
+    : 'A task you complete once for a fixed reward.';
+  document.querySelectorAll('.type-opt').forEach(function (el) {
+    const r = el.querySelector('input');
+    el.classList.toggle('active', r.checked);
+  });
+}
+syncTaskType();
+</script>
+{% endblock %}

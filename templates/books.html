@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">📚 Books</div>
+    <div class="page-subtitle">Track your reading progress and earn dopamine points</div>
+  </div>
+  <div class="flex gap-2 items-center">
+    <span class="card-badge">{{ books|length }} books</span>
+  </div>
+</div>
+
+<!-- Add Book Form -->
+<div class="add-form-card mb-6">
+  <div class="add-form-title">➕ Add New Book</div>
+  <form action="/add_book" method="POST">
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Book Title</label>
+        <input type="text" name="title" placeholder="e.g. Atomic Habits" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Total Pages</label>
+        <input type="number" name="total_pages" placeholder="320" min="1" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">⚡ Dopamine / Page</label>
+        <input type="number" step="0.1" name="dopamine_per_page" placeholder="0.5" min="0.1" required>
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button type="submit" class="btn btn-primary w-full">Add Book</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{# Columns: 0=id, 1=user_id, 2=title, 3=total_pages, 4=current_page, 5=dopamine_per_page, 6=completed #}
+{% if books %}
+<div class="items-grid">
+  {% for book in books %}
+  <div class="item-card {% if book[6] == 1 %}completed{% endif %}">
+    <div class="item-card-header">
+      <div>
+        <div class="item-card-title">{{ book[2] }}</div>
+        <div class="mt-2">
+          {% if book[6] == 1 %}
+            <span class="status-badge completed">✓ Completed</span>
+          {% else %}
+            <span class="status-badge reading">📖 Reading</span>
+          {% endif %}
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+        <a href="/edit_book/{{ book[0] }}" class="btn btn-ghost btn-sm" title="Edit">✏️</a>
+        <a href="/delete_book/{{ book[0] }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('Delete {{ book[2] }}?');" title="Delete">🗑️</a>
+      </div>
+    </div>
+    <div class="item-card-meta">
+      <div class="item-meta-item">
+        <span class="item-meta-label">Progress</span>
+        <span class="item-meta-value cyan">{{ book[4] }} / {{ book[3] }}</span>
+      </div>
+      <div class="item-meta-item">
+        <span class="item-meta-label">⚡ Earned</span>
+        <span class="item-meta-value accent">{{ (book[4] * book[5])|round(1) }}</span>
+      </div>
+      <div class="item-meta-item">
+        <span class="item-meta-label">Total ⚡</span>
+        <span class="item-meta-value">{{ (book[3] * book[5])|round(1) }}</span>
+      </div>
+      <div class="item-meta-item">
+        <span class="item-meta-label">dp/page</span>
+        <span class="item-meta-value">{{ book[5] }}</span>
+      </div>
+    </div>
+    <div class="item-card-progress">
+      <div class="progress-header">
+        <span class="text-xs text-muted">Reading Progress</span>
+        <span class="text-xs font-mono" style="color:var(--accent2);">{{ ((book[4] / book[3]) * 100)|round(1) }}%</span>
+      </div>
+      <div class="progress-bar">
+        {% set pct = ((book[4] / book[3]) * 100) | int %}
+        <div class="progress-fill {% if book[6] == 1 %}complete{% endif %}"
+             style="width:{{ [pct, 100]|min }}%;
+             {% if book[6] != 1 %}background:var(--accent2);box-shadow:0 0 10px rgba(64,200,240,0.3);{% endif %}">
+        </div>
+      </div>
+    </div>
+    {% if book[6] == 0 %}
+    <form action="/update_book/{{ book[0] }}" method="POST">
+      <div class="item-card-actions">
+        <input type="number" name="pages" placeholder="Pages read" min="1" max="{{ book[3] - book[4] }}" required>
+        <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">⚡ Log Pages</button>
+      </div>
+      <div class="text-xs text-muted mt-2">{{ book[3] - book[4] }} pages remaining</div>
+    </form>
+    {% else %}
+    <div class="flex items-center gap-2 mt-2">
+      <span class="status-badge done">🎉 Finished!</span>
+      <span class="text-xs text-muted">+bonus dopamine earned</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📚</div>
+    <div class="empty-title">No books yet</div>
+    <div class="empty-desc">Add your first book above to start tracking your reading progress.</div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

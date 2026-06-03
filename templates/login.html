@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ Dopamax — Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-icon" style="font-size:2.5rem;">⚡</div>
+      <h1 style="font-size:1.8rem;font-weight:700;margin:0;">Dopamax</h1>
+      <div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Productivity Engine v2.0</div>
+    </div>
+
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" placeholder="you@example.com" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;">
+        ⚡ Sign In
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Don't have an account?
+      <a href="/register" style="color:var(--accent);">Create one</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

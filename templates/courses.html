@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">🎓 Courses</div>
+    <div class="page-subtitle">Track your learning journey and lecture completions</div>
+  </div>
+  <span class="card-badge">{{ courses|length }} courses</span>
+</div>
+
+<!-- Add Course Form -->
+<div class="add-form-card mb-6">
+  <div class="add-form-title">➕ Add New Course</div>
+  <form action="/add_course" method="POST">
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Course Title</label>
+        <input type="text" name="title" placeholder="e.g. Deep Learning Specialization" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Total Lectures</label>
+        <input type="number" name="total_lectures" placeholder="50" min="1" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">⚡ Dopamine / Lecture</label>
+        <input type="number" step="0.1" name="dopamine_per_lecture" placeholder="2.0" min="0.1" required>
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button type="submit" class="btn btn-primary w-full">Add Course</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Courses Grid -->
+{% if courses %}
+<div class="items-grid">
+  {% for course in courses %}
+
+  {% set pct = ((course[4] / course[3]) * 100)|int if course[3] > 0 else 0 %}
+  {% set is_done = (course[4] >= course[3]) %}
+
+  <div class="item-card {% if is_done %}completed{% endif %}">
+
+    <div class="item-card-header">
+      <div>
+        <div class="item-card-title">{{ course[2] }}</div>
+        <div class="mt-2">
+          {% if is_done %}
+            <span class="status-badge completed">✓ Completed</span>
+          {% else %}
+            <span class="status-badge active">📺 In Progress</span>
+          {% endif %}
+        </div>
+      </div>
+      <!-- Edit & Delete buttons -->
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+        <a href="/edit_course/{{ course[0] }}" class="btn btn-ghost btn-sm" title="Edit">✏️</a>
+        <a href="/delete_course/{{ course[0] }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('Delete {{ course[2] }}?');" title="Delete">🗑️</a>
+      </div>
+    </div>
+
+    <div class="item-card-meta">
+      <div class="item-meta-item">
+        <span class="item-meta-label">Lectures</span>
+        <span class="item-meta-value cyan">{{ course[4] }} / {{ course[3] }}</span>
+      </div>
+      <div class="item-meta-item">
+        <span class="item-meta-label">⚡ Earned</span>
+        <span class="item-meta-value accent">{{ (course[4] * course[5])|round(1) }}</span>
+      </div>
+      <div class="item-meta-item">
+        <span class="item-meta-label">dp/lecture</span>
+        <span class="item-meta-value">{{ course[5] }}</span>
+      </div>
+      <div class="item-meta-item">
+        <span class="item-meta-label">Remaining</span>
+        <span class="item-meta-value">{{ course[3] - course[4] }}</span>
+      </div>
+    </div>
+
+    <div class="item-card-progress">
+      <div class="progress-header">
+        <span class="text-xs text-muted">Course Progress</span>
+        <span class="text-xs font-mono" style="color:var(--accent3);">{{ pct }}%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill {% if is_done %}complete{% endif %}"
+             style="width:{{ [pct,100]|min }}%;
+             {% if not is_done %}background:var(--accent3);box-shadow:0 0 10px rgba(192,64,240,0.3);{% endif %}">
+        </div>
+      </div>
+    </div>
+
+    {% if not is_done %}
+    <form action="/update_course/{{ course[0] }}" method="POST">
+      <div class="item-card-actions">
+        <input type="number" name="lectures" placeholder="Lectures today" min="1"
+               max="{{ course[3] - course[4] }}" required>
+        <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">
+          ⚡ Log Lectures
+        </button>
+      </div>
+    </form>
+    {% else %}
+    <div class="status-badge done mt-2">🎉 Course Complete!</div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">🎓</div>
+    <div class="empty-title">No courses yet</div>
+    <div class="empty-desc">Add a course to start tracking your lectures and earning dopamine.</div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

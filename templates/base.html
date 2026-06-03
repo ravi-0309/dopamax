@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ Dopamax</title>
+  <script>
+    // Apply saved theme immediately to avoid a flash of the wrong theme
+    (function () {
+      try {
+        var t = localStorage.getItem('dopamax-theme') || '{{ theme|default("dark") }}';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon">⚡</div>
+        <h1>Dopamax</h1>
+      </div>
+      <div class="brand-tagline">rewire your brain</div>
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <span class="nav-section-label">Overview</span>
+
+      <a href="/" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
+        <span class="nav-icon">🏠</span>
+        Dashboard
+      </a>
+
+      <a href="/analytics" class="sidebar-link {% if request.path == '/analytics' %}active{% endif %}">
+        <span class="nav-icon">📊</span>
+        Analytics
+      </a>
+
+      <hr class="sidebar-divider">
+      <span class="nav-section-label">Task Categories</span>
+
+      <a href="/books" class="sidebar-link {% if request.path == '/books' %}active{% endif %}">
+        <span class="nav-icon">📚</span>
+        Books
+      </a>
+
+      <a href="/courses" class="sidebar-link {% if request.path == '/courses' %}active{% endif %}">
+        <span class="nav-icon">🎓</span>
+        Courses
+      </a>
+
+      <a href="/research" class="sidebar-link {% if request.path == '/research' %}active{% endif %}">
+        <span class="nav-icon">🧠</span>
+        Research
+      </a>
+
+      {% for section in custom_sections %}
+      <div class="sidebar-cat">
+        <a href="/section/{{ section[2] }}" class="sidebar-link {% if request.path == '/section/' ~ section[2] %}active{% endif %}">
+          <span class="nav-icon">{{ section[3] if section|length > 3 else '📁' }}</span>
+          {{ section[2] }}
+        </a>
+        <div class="sidebar-cat-actions">
+          <a href="/edit_section/{{ section[2] }}" title="Edit category">✏️</a>
+          <a href="/delete_section/{{ section[2] }}" title="Delete category"
+             onclick="return confirm('Delete {{ section[2] }} and all its tasks?');">🗑️</a>
+        </div>
+      </div>
+      {% endfor %}
+
+      <hr class="sidebar-divider">
+
+      <a href="/settings" class="sidebar-link {% if request.path == '/settings' %}active{% endif %}">
+        <span class="nav-icon">⚙️</span>
+        Settings
+      </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-stat">
+        <span class="sidebar-stat-label">Today</span>
+        <span class="sidebar-stat-value" id="sidebar-today-pts">—</span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {{ user_email if user_email else '' }}
+        </div>
+        <a href="/logout" class="btn btn-ghost btn-sm" style="width:100%;text-align:center;font-size:11px;">
+          🚪 Sign Out
+        </a>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<script>
+async function loadSidebarStats() {
+  try {
+    const r = await fetch('/api/today_points');
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('sidebar-today-pts').textContent = d.points + ' dp';
+    }
+  } catch(e) {}
+}
+loadSidebarStats();
+
+// Reusable emoji picker: clicking a swatch fills the paired input; paste/typing still works.
+function initEmojiPickers() {
+  document.querySelectorAll('.emoji-picker').forEach(function (picker) {
+    var scope = picker.closest('form') || picker;
+    var input = picker.querySelector('.emoji-input') || scope.querySelector('.emoji-input');
+    picker.querySelectorAll('.emoji-opt').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (input) input.value = btn.textContent.trim();
+        picker.querySelectorAll('.emoji-opt').forEach(function (b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+      });
+    });
+  });
+}
+initEmojiPickers();
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

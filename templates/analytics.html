@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">📊 Analytics</div>
+    <div class="page-subtitle">Visualize your productivity and dopamine trends</div>
+  </div>
+  <div class="flex gap-2 items-center">
+    <span class="card-badge font-mono">{{ dates|length }} days tracked</span>
+  </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="stats-grid" style="margin-bottom:28px;">
+
+  <div class="stat-card accent">
+    <div class="stat-label">⚡ Total Dopamine</div>
+    <div class="stat-value accent">{{ total }}</div>
+    <div class="stat-meta">all time</div>
+  </div>
+
+  <div class="stat-card cyan">
+    <div class="stat-label">📈 Daily Average</div>
+    <div class="stat-value cyan">{{ daily_avg }}</div>
+    <div class="stat-meta">dopamine / day</div>
+  </div>
+
+  <div class="stat-card cyan">
+    <div class="stat-label">📆 Weekly Average</div>
+    <div class="stat-value cyan">{{ weekly_avg }}</div>
+    <div class="stat-meta">last 7 days</div>
+  </div>
+
+  <div class="stat-card accent">
+    <div class="stat-label">🗓 Monthly Average</div>
+    <div class="stat-value accent">{{ monthly_avg }}</div>
+    <div class="stat-meta">last 30 days</div>
+  </div>
+
+  <div class="stat-card green">
+    <div class="stat-label">🏆 Best Day</div>
+    <div class="stat-value green">{{ best_day_points if best_day_points is not none else '—' }}</div>
+    <div class="stat-meta">{{ best_day_date if best_day_date else 'no data' }}</div>
+  </div>
+
+  <div class="stat-card red">
+    <div class="stat-label">📉 Worst Day</div>
+    <div class="stat-value red">{{ worst_day_points if worst_day_points is not none else '—' }}</div>
+    <div class="stat-meta">{{ worst_day_date if worst_day_date else 'no data' }}</div>
+  </div>
+
+</div>
+
+<!-- Charts: Bar + Pie side by side -->
+<div class="analytics-grid" style="margin-bottom:24px;">
+
+  <!-- Daily Bar Chart -->
+  <div class="chart-card">
+    <div class="card-header">
+      <div class="card-title">📈 Daily Dopamine Trend</div>
+      <div class="card-badge">Last {{ dates|length }} days</div>
+    </div>
+    {% if dates %}
+    <canvas id="dopamineChart" style="max-height:300px;"></canvas>
+    {% else %}
+    <div class="empty-state" style="padding:40px;">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">No data yet</div>
+      <div class="empty-desc">Start completing tasks to see your progress chart.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Pie / Doughnut -->
+  <div class="chart-card">
+    <div class="card-header">
+      <div class="card-title">🗂️ Source Breakdown</div>
+      <div class="flex gap-2 items-center">
+        <select id="breakdown-mode" class="form-control" style="max-width:150px;">
+          <option value="overall">Overall</option>
+          <option value="daily">Selected Day</option>
+        </select>
+        <input type="date" id="selected-date" class="form-control" style="max-width:160px;display:none;">
+      </div>
+    </div>
+    {% if sources %}
+    <canvas id="pieChart" style="max-height:260px; margin: 0 auto; display:block;"></canvas>
+    <div class="analytics-summary" style="margin-top:16px;" id="pie-legend"></div>
+    <div class="empty-state" id="pie-empty" style="padding:30px;display:none;">
+      <div class="empty-icon">🗂️</div>
+      <div class="empty-title">No dopamine on this day</div>
+      <div class="empty-desc">Pick another date or switch back to Overall.</div>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:40px;">
+      <div class="empty-icon">🗂️</div>
+      <div class="empty-title">No breakdown yet</div>
+      <div class="empty-desc">Complete tasks in different categories to see the distribution.</div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Source Breakdown Table -->
+{% if sources %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      📋 Detailed Breakdown
+      <span id="breakdown-date-label" style="color:var(--text-muted);font-weight:400;">(Overall)</span>
+    </div>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Dopamine</th>
+          <th>Share</th>
+          <th>Visual</th>
+        </tr>
+      </thead>
+      <tbody id="breakdown-table"><!-- populated by JS --></tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===========================
+// DATA FROM FLASK
+// ===========================
+const datesRaw         = {{ dates | tojson }};
+const pointsRaw        = {{ points | tojson }};
+const overallSources   = {{ sources | tojson }};
+const overallPoints    = {{ source_points | tojson }};
+const dailyBreakdown   = {{ daily_breakdown | tojson }};   // { "YYYY-MM-DD": { "Books": 12, ... } }
+
+// ===========================
+// COLORS (consistent per source)
+// ===========================
+const COLORS = ['#f0c040', '#40c8f0', '#c040f0', '#40e08a', '#f08040', '#f05060', '#80c0ff', '#c0ff80', '#ff9f40', '#8a7dff'];
+const colorMap = {};
+let colorIdx = 0;
+function colorFor(src) {
+  if (!(src in colorMap)) { colorMap[src] = COLORS[colorIdx % COLORS.length]; colorIdx++; }
+  return colorMap[src];
+}
+// Seed overall sources first so colors stay stable
+overallSources.forEach(colorFor);
+
+const chartDefaults = {
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#1e2735', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+      titleColor: '#e8edf5', bodyColor: '#7a8aa0', padding: 12, cornerRadius: 8
+    }
+  }
+};
+
+// ===========================
+// BAR CHART
+// ===========================
+if (datesRaw.length > 0) {
+  const barCtx = document.getElementById('dopamineChart');
+  if (barCtx) {
+    new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: datesRaw,
+        datasets: [{
+          label: 'Dopamine Points',
+          data: pointsRaw,
+          backgroundColor: pointsRaw.map(p => p >= 50 ? 'rgba(64, 224, 138, 0.6)' : 'rgba(240, 192, 64, 0.6)'),
+          borderColor: pointsRaw.map(p => p >= 50 ? '#40e08a' : '#f0c040'),
+          borderWidth: 1, borderRadius: 4, borderSkipped: false
+        }]
+      },
+      options: {
+        ...chartDefaults,
+        responsive: true,
+        scales: {
+          x: { ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: 'rgba(255,255,255,0.06)' } },
+          y: { ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true }
+        },
+        plugins: {
+          ...chartDefaults.plugins,
+          tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.raw} dopamine points` } }
+        }
+      }
+    });
+  }
+}
+
+// ===========================
+// PIE / DOUGHNUT + TABLE (mode-aware)
+// ===========================
+let pieChart = null;
+
+function currentData() {
+  const mode = document.getElementById('breakdown-mode').value;
+  if (mode === 'daily') {
+    const d = document.getElementById('selected-date').value;
+    const dayObj = dailyBreakdown[d] || {};
+    const labels = Object.keys(dayObj);
+    const data = labels.map(k => dayObj[k]);
+    return { labels, data, label: d ? '(' + d + ')' : '(No date selected)' };
+  }
+  return { labels: overallSources.slice(), data: overallPoints.slice(), label: '(Overall)' };
+}
+
+function renderBreakdown() {
+  if (overallSources.length === 0) return;
+  const { labels, data, label } = currentData();
+  const total = data.reduce((a, b) => a + b, 0);
+
+  const pieCanvas = document.getElementById('pieChart');
+  const legendEl  = document.getElementById('pie-legend');
+  const emptyEl   = document.getElementById('pie-empty');
+  const tableBody = document.getElementById('breakdown-table');
+  const dateLabel = document.getElementById('breakdown-date-label');
+
+  if (dateLabel) dateLabel.textContent = label;
+
+  // Empty state for a selected day with no data
+  if (labels.length === 0) {
+    if (pieChart) { pieChart.destroy(); pieChart = null; }
+    if (pieCanvas) pieCanvas.style.display = 'none';
+    if (legendEl) legendEl.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'block';
+    if (tableBody) tableBody.innerHTML = '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:18px;">No dopamine recorded for this day.</td></tr>';
+    return;
+  }
+  if (pieCanvas) pieCanvas.style.display = 'block';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const bg = labels.map(s => colorFor(s) + 'cc');
+  const bd = labels.map(s => colorFor(s));
+
+  if (pieChart) {
+    pieChart.data.labels = labels;
+    pieChart.data.datasets[0].data = data;
+    pieChart.data.datasets[0].backgroundColor = bg;
+    pieChart.data.datasets[0].borderColor = bd;
+    pieChart.update();
+  } else if (pieCanvas) {
+    pieChart = new Chart(pieCanvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: bg, borderColor: bd, borderWidth: 2, hoverOffset: 8 }] },
+      options: {
+        ...chartDefaults, responsive: true, cutout: '65%',
+        plugins: { ...chartDefaults.plugins, tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} dp` } } }
+      }
+    });
+  }
+
+  // Legend
+  if (legendEl) {
+    legendEl.innerHTML = '';
+    labels.forEach((src, i) => {
+      const pct = total > 0 ? Math.round((data[i] / total) * 100) : 0;
+      legendEl.innerHTML += `
+        <div class="summary-item">
+          <div class="summary-item-label">
+            <div class="summary-dot" style="background:${colorFor(src)};"></div>${src}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="text-xs text-muted">${pct}%</span>
+            <span class="summary-item-value">${data[i].toFixed(1)}</span>
+          </div>
+        </div>`;
+    });
+  }
+
+  // Table
+  if (tableBody) {
+    tableBody.innerHTML = '';
+    labels.forEach((src, i) => {
+      const pct = total > 0 ? Math.round((data[i] / total) * 100) : 0;
+      const color = colorFor(src);
+      tableBody.innerHTML += `
+        <tr>
+          <td><div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 6px ${color}66;"></div>${src}
+          </div></td>
+          <td><span class="dopamine-pill" style="background:${color}22;color:${color};border-color:${color}44;">⚡ ${data[i].toFixed(1)}</span></td>
+          <td><span class="font-mono text-sm" style="color:${color};">${pct}%</span></td>
+          <td style="width:150px;"><div class="progress-bar" style="height:6px;">
+            <div class="progress-fill" style="width:${pct}%;background:${color};box-shadow:0 0 6px ${color}66;"></div>
+          </div></td>
+        </tr>`;
+    });
+  }
+}
+
+// ===========================
+// WIRE UP CONTROLS
+// ===========================
+(function () {
+  if (overallSources.length === 0) return;
+  const modeSel = document.getElementById('breakdown-mode');
+  const dateInput = document.getElementById('selected-date');
+
+  // Default the date picker to the most recent tracked day
+  if (datesRaw.length > 0) dateInput.value = datesRaw[datesRaw.length - 1];
+
+  modeSel.addEventListener('change', () => {
+    dateInput.style.display = (modeSel.value === 'daily') ? 'block' : 'none';
+    renderBreakdown();
+  });
+  dateInput.addEventListener('change', () => {
+    if (modeSel.value === 'daily') renderBreakdown();
+  });
+
+  renderBreakdown();
+})();
+</script>
+{% endblock %}

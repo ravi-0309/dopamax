@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">🧠 Research</div>
+    <div class="page-subtitle">Track research tasks and ideas worth exploring</div>
+  </div>
+  <span class="card-badge">{{ research|length }} tasks</span>
+</div>
+
+<!-- Add Research Form -->
+<div class="add-form-card mb-6">
+  <div class="add-form-title">➕ Add Research Task</div>
+  <form action="/add_research" method="POST">
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0; flex:2;">
+        <label class="form-label">Research Topic / Task</label>
+        <input type="text" name="title" placeholder="e.g. Read paper on Transformer architecture" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">⚡ Dopamine Reward</label>
+        <input type="number" step="0.1" name="dopamine_points" placeholder="10" min="0.1" required>
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button type="submit" class="btn btn-primary w-full">Add Task</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Research Grid -->
+{% if research %}
+
+<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:24px;">
+  {% set total = research|length %}
+  {% set done = research|selectattr('4', 'equalto', 1)|list|length %}
+  {% set pending = total - done %}
+  {% set total_dp = research|sum(attribute='3') %}
+
+  <div class="stat-card green">
+    <div class="stat-label">✅ Completed</div>
+    <div class="stat-value green">{{ done }}</div>
+    <div class="stat-meta">of {{ total }} tasks</div>
+  </div>
+  <div class="stat-card cyan">
+    <div class="stat-label">⏳ Pending</div>
+    <div class="stat-value cyan">{{ pending }}</div>
+    <div class="stat-meta">tasks remaining</div>
+  </div>
+  <div class="stat-card accent">
+    <div class="stat-label">⚡ Total Pool</div>
+    <div class="stat-value accent">{{ total_dp|round(1) }}</div>
+    <div class="stat-meta">dopamine available</div>
+  </div>
+</div>
+
+<div class="items-grid">
+  {% for task in research %}
+  <div class="item-card {% if task[4] == 1 %}completed{% endif %}">
+
+    <div class="item-card-header">
+      <div style="flex:1;">
+        <div class="item-card-title" style="{% if task[4] == 1 %}opacity:0.6; text-decoration:line-through;{% endif %}">
+          {{ task[2] }}
+        </div>
+        <div class="mt-2">
+          {% if task[4] == 1 %}
+            <span class="status-badge done">✓ Completed</span>
+          {% else %}
+            <span class="status-badge reading">🔬 Pending</span>
+          {% endif %}
+        </div>
+      </div>
+      <!-- Edit & Delete -->
+      {% if task[4] == 0 %}
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+        <a href="/edit_research/{{ task[0] }}" class="btn btn-ghost btn-sm" title="Edit">✏️</a>
+        <a href="/delete_research/{{ task[0] }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('Delete this task?');" title="Delete">🗑️</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-2" style="margin-bottom:14px;">
+      <span class="text-sm text-muted">Reward:</span>
+      <span class="dopamine-pill">⚡ {{ task[2] }} dp</span>
+    </div>
+
+    {% if task[4] == 0 %}
+    <a href="/complete_research/{{ task[0] }}" class="btn btn-success btn-sm">
+      ✓ Mark Complete
+    </a>
+    {% else %}
+    <div class="text-xs text-muted" style="color:var(--success);">
+      ✓ Dopamine earned and logged
+    </div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">🧠</div>
+    <div class="empty-title">No research tasks yet</div>
+    <div class="empty-desc">Add research tasks to track ideas, papers, or topics you want to explore.</div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

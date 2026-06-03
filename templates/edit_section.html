@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">✏️ Edit Category</div>
+    <div class="page-subtitle">Rename or change the symbol for this category</div>
+  </div>
+  <a href="/section/{{ section_name }}" class="btn btn-ghost">← Back</a>
+</div>
+
+<div class="card" style="max-width:560px;">
+  <div class="card-header">
+    <div class="card-title">{{ section_icon }} {{ section_name }}</div>
+  </div>
+  <form action="/save_section/{{ section_name }}" method="POST">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+      <div style="flex:1;min-width:160px;">
+        <label class="form-label">Category Name</label>
+        <input type="text" name="section_name" value="{{ section_name }}" required>
+      </div>
+      <div style="min-width:100px;">
+        <label class="form-label">Icon</label>
+        <input type="text" name="section_icon" class="emoji-input" value="{{ section_icon }}"
+               maxlength="4" style="width:80px;text-align:center;font-size:1.3rem;">
+      </div>
+    </div>
+
+    <div class="emoji-picker" style="margin-top:14px;">
+      <div class="form-label" style="margin-bottom:6px;">Pick a symbol (or type/paste your own above)</div>
+      <div class="emoji-grid">
+        {% for e in ['📁','🏋️','🏃','🧘','🚴','⚽','🏀','🎾','🏊','🥊','⛰️','💻','📹','🎮','🎵','🎸','🎨','✍️','📝','📖','🧠','🔬','💡','🗣️','🌿','🍳','🥗','💧','😴','🧹','💰','📈','🙏','❤️','🐶','✈️'] %}
+        <button type="button" class="emoji-opt">{{ e }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:18px;">
+      <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+      <a href="/section/{{ section_name }}" class="btn btn-ghost">Cancel</a>
+    </div>
+    <p class="text-xs text-muted" style="margin-top:12px;">Renaming keeps all existing tasks and your analytics history linked to this category.</p>
+  </form>
+</div>
+{% endblock %}

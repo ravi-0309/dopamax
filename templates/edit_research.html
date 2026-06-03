@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">✏️ Edit Research Task</div>
+    <div class="page-subtitle">Update task details</div>
+  </div>
+  <a href="/research" class="btn btn-ghost">← Back to Research</a>
+</div>
+
+<div class="card" style="max-width:520px;">
+  <div class="card-header">
+    <div class="card-title">🧠 Task Details</div>
+  </div>
+
+  <form action="/save_research/{{ task[0] }}" method="POST">
+
+    <div class="form-group">
+      <label class="form-label">Research Topic / Task</label>
+      <input type="text" name="title" value="{{ task[1] }}" required>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">⚡ Dopamine Reward</label>
+      <input type="number" step="0.1" name="dopamine_points" value="{{ task[2] }}" required min="0.1">
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:8px;">
+      <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+      <a href="/research" class="btn btn-ghost">Cancel</a>
+    </div>
+
+  </form>
+</div>
+
+{% endblock %}
