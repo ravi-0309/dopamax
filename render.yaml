@@ -6,6 +6,8 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"       # psycopg2 isn't compatible with Python 3.14 yet
       - key: SECRET_KEY
         generateValue: true   # Render creates a strong random key for you
       - key: DATABASE_URL

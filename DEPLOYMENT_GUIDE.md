@@ -70,7 +70,58 @@ You'll do this once. Total time ~15–20 minutes. You do **not** need to type an
 3. It now opens full-screen like a real app. Log in and your data is always there.
 
 ## Share with friends
-Just send them your Render link. Each person clicks **Register** to get their own private account.
+Just send them your Render link. Each person clicks **Register** to get their own private account. Everyone's data is separate and private — one person can't see another's books, streaks, or anything else.
+
+---
+
+## PART 5 — Put it on your own web address (a subdomain)
+
+Right now your app lives at something like `https://dopamax.onrender.com`. This part gives it a nicer address that *you* own, like `https://app.yourname.com`.
+
+**10-second vocabulary (so the rest makes sense):**
+- A **domain** is the web address you buy once a year, like `yourname.com`.
+- A **subdomain** is a word with a dot in front of it, like `app.yourname.com`. Once you own the domain, you can make as many subdomains as you want, for free.
+- **DNS** is just the phone book of the internet. You'll add one line that says: "when someone types `app.yourname.com`, send them to my Render app."
+
+### Step 1 — Buy a domain
+Go to a domain seller and buy your domain (usually about $10–12/year). Beginner-friendly options:
+- **Cloudflare** (cloudflare.com) — cheapest, and it also manages the DNS phone book in the same place. **Recommended.**
+- **Namecheap** or **Porkbun** also work fine.
+
+Pick a name, pay, done. You now own `yourname.com`.
+
+### Step 2 — Tell Render about your new address
+1. In Render, open your **dopamax** service.
+2. In the left menu click **Settings**, then scroll down to **Custom Domains**.
+3. Click **Add Custom Domain**, type `app.yourname.com` (use your real domain), and click **Save**.
+4. Render will now show a small instruction containing a **CNAME target** — a value that looks like `dopamax.onrender.com`. Leave this tab open; you'll copy that value in the next step.
+
+### Step 3 — Add one line in your domain's DNS
+Go to wherever you bought the domain (Cloudflare / Namecheap / etc.) and open its **DNS settings**. Add a **new record**:
+- **Type:** `CNAME`
+- **Name** (sometimes called *Host*): `app`  ← just the word, **not** the whole address
+- **Target** (sometimes called *Value* or *Points to*): the value Render gave you (e.g. `dopamax.onrender.com`)
+- **TTL:** leave it on Auto / Automatic
+
+Click **Save**.
+
+> 💡 If you're on **Cloudflare** and you see an **orange cloud** icon next to the record, click it once so it turns **grey** ("DNS only"). This lets Render set up the security padlock (HTTPS) without any hiccups.
+
+### Step 4 — Wait a few minutes
+Go back to the Render tab. Within a few minutes (occasionally up to an hour) it will change to **Verified** and automatically set up the HTTPS padlock for you. Then open `https://app.yourname.com` — your app is now live on your own address. 🎉
+
+You can put **this** address on your iPhone home screen (Part 4) instead of the long Render one.
+
+---
+
+## Later: your portfolio on a second subdomain
+
+When you're ready to put your portfolio online, it's the exact same DNS trick with a different word — they never interfere with each other:
+- `app.yourname.com` → your Dopamax app (done above)
+- `portfolio.yourname.com` → wherever you host the portfolio (Vercel or Netlify are great and free; they'll give you a target to point the CNAME at)
+- `yourname.com` (the plain one) → you can point this at your portfolio as your main "front door"
+
+Each one is just one more line in the DNS phone book. We'll walk through the portfolio together when you get there.
 
 ---
 

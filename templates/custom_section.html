@@ -1,5 +1,92 @@
 {% extends 'base.html' %}
 {% block content %}
+
+{% macro render_task(task) %}
+  {% if task.task_type == 'rate' %}
+  <!-- ===== REPEATABLE / RATE-BASED ===== -->
+  <div class="item-card">
+    <div class="item-card-header">
+      <div>
+        <div class="item-card-title">🔁 {{ task.title }}</div>
+        <div class="mt-2">
+          <span class="status-badge active">Repeatable</span>
+          {% if task.live_streak and task.live_streak > 0 %}
+          <span class="status-badge" style="background:rgba(240,128,64,0.15);color:#f08040;">🔥 {{ task.live_streak }}-day streak</span>
+          {% endif %}
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+        <button type="button" class="btn btn-ghost btn-sm js-task-details"
+                data-kind="custom" data-id="{{ task.id }}" data-title="{{ task.title }}" title="Details">📊</button>
+        <a href="/delete_custom_task/{{ task.id }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('Delete this task?');">🗑️</a>
+      </div>
+    </div>
+
+    <div class="text-sm text-muted" style="margin:8px 0 12px;">
+      ⚡ {{ task.rate_dopamine }} dp per {{ task.rate_units }} {{ task.unit_name or 'units' }}
+      {% if task.completion_bonus and task.completion_bonus > 0 %} · 🎁 +{{ task.completion_bonus }} / log{% endif %}
+      {% if task.streak_days and task.streak_days > 0 %} · 🔥 +{{ task.streak_bonus }} every {{ task.streak_days }} days{% endif %}
+    </div>
+
+    <form action="/log_custom_task/{{ task.id }}" method="POST"
+          style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+      <input type="number" step="0.1" name="units" placeholder="0" min="0.1" required
+             style="flex:1;" aria-label="amount of {{ task.unit_name or 'units' }}">
+      <span class="text-sm text-muted">{{ task.unit_name or 'units' }}</span>
+      <button type="submit" class="btn btn-success btn-sm">＋ Log</button>
+    </form>
+
+    <div class="flex gap-2" style="font-size:0.72rem;color:var(--text-muted);">
+      <span class="font-mono">Σ {{ task.total_units|round(1) }} {{ task.unit_name or 'units' }}</span>
+      <span class="font-mono">· {{ task.log_count }} logs</span>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- ===== ONE-TIME TASK ===== -->
+  <div class="item-card {% if task.completed == 1 %}completed{% endif %}">
+    <div class="item-card-header">
+      <div>
+        <div class="item-card-title" style="{% if task.completed == 1 %}opacity:0.6; text-decoration:line-through;{% endif %}">
+          {{ task.title }}
+        </div>
+        <div class="mt-2">
+          {% if task.completed == 1 %}
+            <span class="status-badge done">✓ Completed</span>
+          {% else %}
+            <span class="status-badge active">⏳ Pending</span>
+          {% endif %}
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+        <button type="button" class="btn btn-ghost btn-sm js-task-details"
+                data-kind="custom" data-id="{{ task.id }}" data-title="{{ task.title }}" title="Details">📊</button>
+        {% if task.completed == 0 %}
+        <a href="/delete_custom_task/{{ task.id }}" class="btn btn-danger btn-sm"
+           onclick="return confirm('Delete this task?');">🗑️</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-2" style="margin:8px 0 14px;">
+      <span class="text-sm text-muted">Reward:</span>
+      <span class="dopamine-pill">⚡ {{ task.dopamine_points }} dp</span>
+      {% if task.completion_bonus and task.completion_bonus > 0 %}
+      <span class="dopamine-pill" style="background:rgba(240,192,64,0.15);">🎁 +{{ task.completion_bonus }}</span>
+      {% endif %}
+    </div>
+    {% if task.completed == 0 %}
+    <a href="/complete_custom_task/{{ task.id }}" class="btn btn-success btn-sm">✓ Complete Task</a>
+    {% else %}
+    <div class="text-xs" style="color:var(--success);">✓ Dopamine earned</div>
+    {% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% set completed_tasks = tasks|selectattr('completed','equalto',1)|list %}
+{% set ongoing_tasks = tasks|rejectattr('completed','equalto',1)|list %}
+
 <div class="page-header">
   <div>
     <div class="page-title">{{ section_icon }} {{ section_name }}</div>
@@ -8,15 +95,15 @@
   <div class="flex gap-2 items-center">
     <a href="/edit_section/{{ section_name }}" class="btn btn-ghost btn-sm">✏️ Edit</a>
     <span class="card-badge">{{ tasks|length }} tasks</span>
+    <button class="btn btn-primary btn-sm" type="button" onclick="toggleAddForm(this)">➕ Add task</button>
   </div>
 </div>
 
-<!-- ADD TASK -->
-<div class="add-form-card mb-6">
+<!-- ADD TASK (collapsed by default) -->
+<div class="add-form-card mb-6" id="add-form" style="display:none;">
   <div class="add-form-title">➕ Add to {{ section_name }}</div>
   <form action="/add_custom_task/{{ section_name }}" method="POST" id="add-task-form">
 
-    <!-- Task type selector -->
     <div class="form-group" style="margin-bottom:14px;">
       <label class="form-label">Task Type</label>
       <div class="type-switch">
@@ -88,112 +175,49 @@
   </form>
 </div>
 
-<!-- SUMMARY -->
 {% if tasks %}
-{% set done_tasks = tasks|selectattr('completed','equalto',1)|list|length %}
-{% set rate_tasks = tasks|selectattr('task_type','equalto','rate')|list|length %}
-<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:24px;">
-  <div class="stat-card accent">
-    <div class="stat-label">📋 Total</div>
-    <div class="stat-value accent">{{ tasks|length }}</div>
-    <div class="stat-meta">tasks</div>
-  </div>
-  <div class="stat-card cyan">
-    <div class="stat-label">🔁 Repeatable</div>
-    <div class="stat-value cyan">{{ rate_tasks }}</div>
-    <div class="stat-meta">rate-based</div>
-  </div>
-  <div class="stat-card green">
-    <div class="stat-label">✅ Done</div>
-    <div class="stat-value green">{{ done_tasks }}</div>
-    <div class="stat-meta">one-time finished</div>
-  </div>
+<!-- Tabs -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('ongoing', this)">⏳ Ongoing <span class="tab-count">{{ ongoing_tasks|length }}</span></button>
+  <button class="tab-btn" onclick="showTab('completed', this)">✅ Completed <span class="tab-count">{{ completed_tasks|length }}</span></button>
 </div>
 
-<div class="items-grid">
-  {% for task in tasks %}
-
-  {% if task.task_type == 'rate' %}
-  <!-- ===== REPEATABLE / RATE-BASED ===== -->
-  <div class="item-card">
-    <div class="item-card-header">
-      <div>
-        <div class="item-card-title">🔁 {{ task.title }}</div>
-        <div class="mt-2">
-          <span class="status-badge active">Repeatable</span>
-          {% if task.live_streak and task.live_streak > 0 %}
-          <span class="status-badge" style="background:rgba(240,128,64,0.15);color:#f08040;">🔥 {{ task.live_streak }}-day streak</span>
-          {% endif %}
-        </div>
-      </div>
-      <a href="/delete_custom_task/{{ task.id }}" class="btn btn-danger btn-sm"
-         onclick="return confirm('Delete this task?');">🗑️</a>
-    </div>
-
-    <div class="text-sm text-muted" style="margin:8px 0 12px;">
-      ⚡ {{ task.rate_dopamine }} dp per {{ task.rate_units }} {{ task.unit_name or 'units' }}
-      {% if task.completion_bonus and task.completion_bonus > 0 %} · 🎁 +{{ task.completion_bonus }} / log{% endif %}
-      {% if task.streak_days and task.streak_days > 0 %} · 🔥 +{{ task.streak_bonus }} every {{ task.streak_days }} days{% endif %}
-    </div>
-
-    <form action="/log_custom_task/{{ task.id }}" method="POST"
-          style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
-      <input type="number" step="0.1" name="units" placeholder="0" min="0.1" required
-             style="flex:1;" aria-label="amount of {{ task.unit_name or 'units' }}">
-      <span class="text-sm text-muted">{{ task.unit_name or 'units' }}</span>
-      <button type="submit" class="btn btn-success btn-sm">＋ Log</button>
-    </form>
-
-    <div class="flex gap-2" style="font-size:0.72rem;color:var(--text-muted);">
-      <span class="font-mono">Σ {{ task.total_units|round(1) }} {{ task.unit_name or 'units' }}</span>
-      <span class="font-mono">· {{ task.log_count }} logs</span>
-    </div>
+<!-- ONGOING (repeatable + pending one-time) -->
+<div class="tab-panel active" id="tab-ongoing">
+  {% if ongoing_tasks %}
+  <div class="items-grid">
+    {% for task in ongoing_tasks %}{{ render_task(task) }}{% endfor %}
   </div>
-
   {% else %}
-  <!-- ===== ONE-TIME TASK ===== -->
-  <div class="item-card {% if task.completed == 1 %}completed{% endif %}">
-    <div class="item-card-header">
-      <div>
-        <div class="item-card-title" style="{% if task.completed == 1 %}opacity:0.6; text-decoration:line-through;{% endif %}">
-          {{ task.title }}
-        </div>
-        <div class="mt-2">
-          {% if task.completed == 1 %}
-            <span class="status-badge done">✓ Completed</span>
-          {% else %}
-            <span class="status-badge active">⏳ Pending</span>
-          {% endif %}
-        </div>
-      </div>
-      {% if task.completed == 0 %}
-      <a href="/delete_custom_task/{{ task.id }}" class="btn btn-danger btn-sm"
-         onclick="return confirm('Delete this task?');">🗑️</a>
-      {% endif %}
-    </div>
-    <div class="flex items-center gap-2" style="margin:8px 0 14px;">
-      <span class="text-sm text-muted">Reward:</span>
-      <span class="dopamine-pill">⚡ {{ task.dopamine_points }} dp</span>
-      {% if task.completion_bonus and task.completion_bonus > 0 %}
-      <span class="dopamine-pill" style="background:rgba(240,192,64,0.15);">🎁 +{{ task.completion_bonus }}</span>
-      {% endif %}
-    </div>
-    {% if task.completed == 0 %}
-    <a href="/complete_custom_task/{{ task.id }}" class="btn btn-success btn-sm">✓ Complete Task</a>
-    {% else %}
-    <div class="text-xs" style="color:var(--success);">✓ Dopamine earned</div>
-    {% endif %}
-  </div>
+  <div class="card"><div class="empty-state">
+    <div class="empty-icon">⏳</div>
+    <div class="empty-title">Nothing ongoing</div>
+    <div class="empty-desc">Add a one-time task or a repeatable habit to get going.</div>
+  </div></div>
   {% endif %}
-
-  {% endfor %}
 </div>
+
+<!-- COMPLETED -->
+<div class="tab-panel" id="tab-completed">
+  {% if completed_tasks %}
+  <div class="items-grid">
+    {% for task in completed_tasks %}{{ render_task(task) }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="card"><div class="empty-state">
+    <div class="empty-icon">✅</div>
+    <div class="empty-title">No completed tasks yet</div>
+    <div class="empty-desc">Finished one-time tasks will collect here.</div>
+  </div></div>
+  {% endif %}
+</div>
+
 {% else %}
 <div class="card">
   <div class="empty-state">
     <div class="empty-icon">{{ section_icon }}</div>
     <div class="empty-title">No tasks yet</div>
-    <div class="empty-desc">Add a one-time task or a repeatable habit above.</div>
+    <div class="empty-desc">Click “➕ Add task” above to add a one-time task or a repeatable habit.</div>
   </div>
 </div>
 {% endif %}
@@ -207,7 +231,6 @@ function syncTaskType() {
   const rate = document.getElementById('fields-rate');
   once.style.display = (type === 'once') ? 'block' : 'none';
   rate.style.display = (type === 'rate') ? 'block' : 'none';
-  // Disable inputs in the hidden group so they aren't submitted (avoids duplicate field names)
   once.querySelectorAll('input').forEach(i => i.disabled = (type !== 'once'));
   rate.querySelectorAll('input').forEach(i => i.disabled = (type !== 'rate'));
   document.getElementById('type-hint').textContent = (type === 'rate')

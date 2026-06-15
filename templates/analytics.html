@@ -33,12 +33,6 @@
     <div class="stat-meta">last 7 days</div>
   </div>
 
-  <div class="stat-card accent">
-    <div class="stat-label">🗓 Monthly Average</div>
-    <div class="stat-value accent">{{ monthly_avg }}</div>
-    <div class="stat-meta">last 30 days</div>
-  </div>
-
   <div class="stat-card green">
     <div class="stat-label">🏆 Best Day</div>
     <div class="stat-value green">{{ best_day_points if best_day_points is not none else '—' }}</div>
@@ -56,14 +50,20 @@
 <!-- Charts: Bar + Pie side by side -->
 <div class="analytics-grid" style="margin-bottom:24px;">
 
-  <!-- Daily Bar Chart -->
+  <!-- Dopamine Trend -->
   <div class="chart-card">
     <div class="card-header">
-      <div class="card-title">📈 Daily Dopamine Trend</div>
-      <div class="card-badge">Last {{ dates|length }} days</div>
+      <div class="card-title">📈 Dopamine Trend</div>
+      <select id="trend-mode" class="form-control" style="max-width:130px;">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </select>
     </div>
     {% if dates %}
-    <canvas id="dopamineChart" style="max-height:300px;"></canvas>
+    <div style="position:relative;height:300px;">
+      <canvas id="dopamineChart"></canvas>
+    </div>
     {% else %}
     <div class="empty-state" style="padding:40px;">
       <div class="empty-icon">📈</div>
@@ -82,9 +82,10 @@
           <option value="overall">Overall</option>
           <option value="daily">Selected Day</option>
         </select>
-        <input type="date" id="selected-date" class="form-control" style="max-width:160px;display:none;">
+        <input type="hidden" id="selected-date">
       </div>
     </div>
+    <div id="analytics-cal" class="analytics-cal" style="display:none;margin-bottom:16px;"></div>
     {% if sources %}
     <canvas id="pieChart" style="max-height:260px; margin: 0 auto; display:block;"></canvas>
     <div class="analytics-summary" style="margin-top:16px;" id="pie-legend"></div>
@@ -166,37 +167,86 @@ const chartDefaults = {
 };
 
 // ===========================
-// BAR CHART
+// TREND CHART (daily / weekly / monthly)
 // ===========================
-if (datesRaw.length > 0) {
-  const barCtx = document.getElementById('dopamineChart');
-  if (barCtx) {
-    new Chart(barCtx, {
-      type: 'bar',
-      data: {
-        labels: datesRaw,
-        datasets: [{
-          label: 'Dopamine Points',
-          data: pointsRaw,
-          backgroundColor: pointsRaw.map(p => p >= 50 ? 'rgba(64, 224, 138, 0.6)' : 'rgba(240, 192, 64, 0.6)'),
-          borderColor: pointsRaw.map(p => p >= 50 ? '#40e08a' : '#f0c040'),
-          borderWidth: 1, borderRadius: 4, borderSkipped: false
-        }]
-      },
-      options: {
-        ...chartDefaults,
-        responsive: true,
-        scales: {
-          x: { ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: 'rgba(255,255,255,0.06)' } },
-          y: { ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true }
-        },
-        plugins: {
-          ...chartDefaults.plugins,
-          tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.raw} dopamine points` } }
-        }
-      }
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDay(iso) { const p = iso.split('-'); return MONTHS_SHORT[(+p[1]) - 1] + ' ' + (+p[2]); }
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function isoOf(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function mondayOf(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  const wd = (d.getDay() + 6) % 7;        // 0 = Monday
+  d.setDate(d.getDate() - wd);
+  return d;
+}
+function round1(n) { return Math.round(n * 10) / 10; }
+
+function buildSeries(mode) {
+  if (mode === 'weekly') {
+    const b = new Map();
+    datesRaw.forEach((iso, i) => { const k = isoOf(mondayOf(iso)); b.set(k, (b.get(k) || 0) + pointsRaw[i]); });
+    const keys = [...b.keys()].sort();
+    const labels = keys.map((k, idx) => {
+      const fromEnd = keys.length - 1 - idx;
+      if (fromEnd === 0) return 'This week';
+      if (fromEnd === 1) return 'Last week';
+      return 'wk ' + fmtDay(k);
     });
+    return { labels, data: keys.map(k => round1(b.get(k))) };
   }
+  if (mode === 'monthly') {
+    const b = new Map();
+    datesRaw.forEach((iso, i) => { const k = iso.slice(0, 7); b.set(k, (b.get(k) || 0) + pointsRaw[i]); });
+    const keys = [...b.keys()].sort();
+    const labels = keys.map((k, idx) => {
+      const fromEnd = keys.length - 1 - idx;
+      if (fromEnd === 0) return 'This month';
+      if (fromEnd === 1) return 'Last month';
+      const p = k.split('-'); return MONTHS_SHORT[(+p[1]) - 1] + " '" + p[0].slice(2);
+    });
+    return { labels, data: keys.map(k => round1(b.get(k))) };
+  }
+  return { labels: datesRaw.map(fmtDay), data: pointsRaw.slice() };
+}
+
+let trendChart = null;
+function renderTrend(mode) {
+  const el = document.getElementById('dopamineChart');
+  if (!el) return;
+  const { labels, data } = buildSeries(mode);
+  const bg = data.map(p => p >= 50 ? 'rgba(64, 224, 138, 0.6)' : 'rgba(240, 192, 64, 0.6)');
+  const bd = data.map(p => p >= 50 ? '#40e08a' : '#f0c040');
+  if (trendChart) {
+    trendChart.data.labels = labels;
+    trendChart.data.datasets[0].data = data;
+    trendChart.data.datasets[0].backgroundColor = bg;
+    trendChart.data.datasets[0].borderColor = bd;
+    trendChart.update();
+    return;
+  }
+  trendChart = new Chart(el, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Dopamine', data, backgroundColor: bg, borderColor: bd, borderWidth: 1, borderRadius: 4, borderSkipped: false }] },
+    options: {
+      ...chartDefaults,
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: 'rgba(255,255,255,0.06)' } },
+        y: { beginAtZero: true, ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: 'rgba(255,255,255,0.06)' } }
+      },
+      plugins: {
+        ...chartDefaults.plugins,
+        tooltip: { ...chartDefaults.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.raw} dopamine points` } }
+      }
+    }
+  });
+}
+
+if (datesRaw.length > 0) {
+  renderTrend('daily');
+  const ms = document.getElementById('trend-mode');
+  if (ms) ms.addEventListener('change', () => renderTrend(ms.value));
 }
 
 // ===========================
@@ -307,16 +357,26 @@ function renderBreakdown() {
   if (overallSources.length === 0) return;
   const modeSel = document.getElementById('breakdown-mode');
   const dateInput = document.getElementById('selected-date');
+  const calBox = document.getElementById('analytics-cal');
 
-  // Default the date picker to the most recent tracked day
+  // Default the selected day to the most recent tracked day
   if (datesRaw.length > 0) dateInput.value = datesRaw[datesRaw.length - 1];
 
+  let cal = null;
+  function ensureCal() {
+    if (cal || !window.Dopamax || !calBox) return;
+    cal = Dopamax.makeCalendar(calBox, {
+      marked: Object.keys(dailyBreakdown),
+      selected: dateInput.value || undefined,
+      onSelect: function (d) { dateInput.value = d; renderBreakdown(); }
+    });
+  }
+
   modeSel.addEventListener('change', () => {
-    dateInput.style.display = (modeSel.value === 'daily') ? 'block' : 'none';
+    const daily = modeSel.value === 'daily';
+    if (calBox) calBox.style.display = daily ? 'block' : 'none';
+    if (daily) ensureCal();
     renderBreakdown();
-  });
-  dateInput.addEventListener('change', () => {
-    if (modeSel.value === 'daily') renderBreakdown();
   });
 
   renderBreakdown();

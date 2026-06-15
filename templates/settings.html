@@ -81,6 +81,10 @@
               <label>🧠 Research Bonus</label>
               <input type="number" name="research_bonus" value="{{ settings[14] if settings|length > 14 else 25 }}" min="0">
             </div>
+            <div class="setting-field">
+              <label>🗺️ Day Plan Bonus</label>
+              <input type="number" name="day_plan_bonus" value="{{ settings[15] if settings|length > 15 else 5 }}" min="0">
+            </div>
           </div>
         </div>
         <div class="settings-section">
@@ -97,6 +101,10 @@
             <div class="mini-task-row">
               <span class="text-sm">🧠 Research task done</span>
               <span class="dopamine-pill">+{{ settings[14] if settings|length > 14 else 25 }} ⚡</span>
+            </div>
+            <div class="mini-task-row">
+              <span class="text-sm">🗺️ Finish a full day plan</span>
+              <span class="dopamine-pill">+{{ settings[15] if settings|length > 15 else 5 }} ⚡</span>
             </div>
           </div>
         </div>
@@ -185,16 +193,35 @@
         <div class="settings-section">
           <div class="settings-section-title">🎨 Appearance & Behaviour</div>
 
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <div class="toggle-label">🌗 Theme</div>
-              <div class="toggle-desc">Switch between the dark and light look. Applies instantly and is saved.</div>
-            </div>
-            <div class="theme-switch">
-              <input type="hidden" name="theme" id="theme-value"
-                     value="{{ settings[11] if settings|length > 11 and settings[11] else 'dark' }}">
-              <button type="button" class="theme-opt" data-theme="dark" onclick="setTheme('dark')">🌙 Dark</button>
-              <button type="button" class="theme-opt" data-theme="light" onclick="setTheme('light')">☀️ Light</button>
+          <div style="padding:14px 0;border-bottom:1px solid var(--border);">
+            <div class="toggle-label" style="margin-bottom:4px;">🎨 Theme</div>
+            <div class="toggle-desc" style="margin-bottom:14px;">Pick a palette — applies instantly and is saved to your account.</div>
+            <input type="hidden" name="theme" id="theme-value"
+                   value="{{ settings[11] if settings|length > 11 and settings[11] else 'dark' }}">
+            <div class="theme-picker">
+              {% for tid, tname, tsub, c1, c2, c3 in [
+                 ('dark','Vanguard','dark','#8b7cf6','#4cc9f0','#c084fc'),
+                 ('light','Studio','light','#6d5ce8','#0a86c0','#9326c9'),
+                 ('pastel','Pastel','soft','#a78bfa','#38bdf8','#f472b6'),
+                 ('ocean','Ocean','blue / white','#2563eb','#0891b2','#6366f1'),
+                 ('crimson','Crimson','red / light','#dc2626','#ea580c','#be123c'),
+                 ('rose','Rose','pink','#e11d48','#db2777','#f43f5e'),
+                 ('sand','Sand','warm beige','#b45309','#0d9488','#92400e'),
+                 ('mono','Mono','ink','#27272a','#52525b','#a1a1aa'),
+                 ('emerald','Emerald','forest','#10b981','#34d399','#6ee7b7'),
+                 ('sunset','Sunset','ember','#fb7185','#fbbf24','#fb923c'),
+                 ('midnight','Midnight','deep blue','#3b82f6','#38bdf8','#818cf8'),
+                 ('cyber','Cyber','neon','#22d3ee','#a855f7','#f472b6'),
+                 ('liquid','Liquid Glass','refraction','#a9b4ff','#7df0ff','#ff9ffc')
+              ] %}
+              <button type="button" class="theme-swatch" data-theme="{{ tid }}" onclick="setTheme('{{ tid }}')">
+                <span class="theme-chips"><i style="background:{{ c1 }}"></i><i style="background:{{ c2 }}"></i><i style="background:{{ c3 }}"></i></span>
+                <span>
+                  <span class="theme-swatch-name">{{ tname }}</span>
+                  <span class="theme-swatch-sub" style="display:block;">{{ tsub }}</span>
+                </span>
+              </button>
+              {% endfor %}
             </div>
           </div>
 
@@ -294,8 +321,10 @@
 function showPanel(name, btn) {
   document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.settings-nav-item').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
+  const panel = document.getElementById('panel-' + name);
+  panel.classList.add('active');
   btn.classList.add('active');
+  if (window.__revealAll) window.__revealAll(panel);
 }
 
 function prepareForm() {
@@ -309,13 +338,15 @@ function prepareForm() {
   }
 }
 
-// ===== Theme switch =====
+// ===== Theme switch (12 palettes, light/dark mode aware) =====
+const LIGHT_THEMES = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1 };
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.setAttribute('data-mode', LIGHT_THEMES[theme] ? 'light' : 'dark');
   try { localStorage.setItem('dopamax-theme', theme); } catch (e) {}
   const hidden = document.getElementById('theme-value');
   if (hidden) hidden.value = theme;
-  document.querySelectorAll('.theme-opt').forEach(function (b) {
+  document.querySelectorAll('.theme-swatch').forEach(function (b) {
     b.classList.toggle('active', b.dataset.theme === theme);
   });
 }

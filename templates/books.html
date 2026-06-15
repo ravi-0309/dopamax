@@ -9,11 +9,12 @@
   </div>
   <div class="flex gap-2 items-center">
     <span class="card-badge">{{ books|length }} books</span>
+    <button class="btn btn-primary btn-sm" type="button" onclick="toggleAddForm(this)">➕ Add book</button>
   </div>
 </div>
 
-<!-- Add Book Form -->
-<div class="add-form-card mb-6">
+<!-- Add Book Form (collapsed by default) -->
+<div class="add-form-card mb-6" id="add-form" style="display:none;">
   <div class="add-form-title">➕ Add New Book</div>
   <form action="/add_book" method="POST">
     <div class="form-row">
@@ -53,6 +54,8 @@
         </div>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+        <button type="button" class="btn btn-ghost btn-sm js-task-details"
+                data-kind="book" data-id="{{ book[0] }}" data-title="{{ book[2] }}" title="Details">📊</button>
         <a href="/edit_book/{{ book[0] }}" class="btn btn-ghost btn-sm" title="Edit">✏️</a>
         <a href="/delete_book/{{ book[0] }}" class="btn btn-danger btn-sm"
            onclick="return confirm('Delete {{ book[2] }}?');" title="Delete">🗑️</a>

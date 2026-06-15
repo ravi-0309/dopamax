@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">🗺️ Day Planner</div>
+    <div class="page-subtitle">Chain real tasks from your categories. Marking one done logs the progress straight into that task — and finishing the whole flow earns a bonus.</div>
+  </div>
+  <span class="dopamine-pill">🎁 +{{ bonus }} dp on full completion</span>
+</div>
+
+<div class="planner-grid">
+
+  <!-- ============ MAIN COLUMN ============ -->
+  <div>
+
+    {% if plan and steps %}
+    {% set pct = ((done_count / steps|length) * 100) | round | int %}
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div class="card-title">🧭 {{ plan.title }}</div>
+        <div class="flex gap-2 items-center">
+          <span class="card-badge font-mono">{{ done_count }} / {{ steps|length }} done</span>
+          <button class="btn btn-ghost btn-sm" onclick="toggleBuilder()" type="button">✏️ Rebuild</button>
+          <a href="/delete_plan/{{ plan.id }}" class="btn btn-danger btn-sm"
+             onclick="return confirm('Delete this day plan?');">🗑️</a>
+        </div>
+      </div>
+
+      <div class="progress-bar-large" style="margin-bottom:6px;">
+        <div class="progress-fill {% if all_done %}complete{% endif %}" style="width:{{ [pct,100]|min }}%;"></div>
+      </div>
+      <div class="text-xs text-muted" style="text-align:right;margin-bottom:18px;">{{ pct }}% of {{ sel_date }} complete</div>
+
+      <div class="flowchart">
+        <div class="flow-node flow-start">
+          <div class="flow-dot">▶</div>
+          <div class="flow-body"><div class="flow-label">Start of day</div></div>
+        </div>
+        <div class="flow-connector"></div>
+
+        {% for step in steps %}
+        <div class="flow-node {% if step.done %}flow-done{% endif %}">
+          <div class="flow-dot">{% if step.done %}✓{% else %}{{ loop.index }}{% endif %}</div>
+          <div class="flow-body">
+            <div class="flow-label">
+              {% if step.ref_url %}<a href="{{ step.ref_url }}" style="color:inherit;">{{ step.label }} <span style="opacity:.45;font-size:11px;">↗</span></a>{% else %}{{ step.label }}{% endif %}
+            </div>
+            {% if step.applied %}<div class="flow-sub" style="color:var(--success);">✓ logged to its task</div>{% endif %}
+          </div>
+          {% if step.applied %}
+          <span class="btn btn-success btn-sm" style="cursor:default;">✓ Done</span>
+          {% else %}
+          <form action="/toggle_step/{{ step.id }}" method="POST" class="flow-check">
+            <button type="submit" class="btn btn-sm {% if step.done %}btn-success{% else %}btn-secondary{% endif %}">
+              {% if step.done %}✓ Done{% else %}Mark done{% endif %}
+            </button>
+          </form>
+          {% endif %}
+        </div>
+        <div class="flow-connector"></div>
+        {% endfor %}
+
+        <div class="flow-node flow-finish {% if all_done %}flow-done{% endif %}">
+          <div class="flow-dot">🏁</div>
+          <div class="flow-body">
+            <div class="flow-label">Day complete</div>
+            <div class="flow-sub">
+              {% if plan.bonus_awarded %}🎉 Bonus claimed — +{{ bonus }} dp earned{% else %}Finish every step to claim +{{ bonus }} dp{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;justify-content:center;">
+        {% if plan.bonus_awarded %}
+          <span class="status-badge done" style="font-size:13px;padding:8px 18px;">🎉 Day plan completed · +{{ bonus }} dp claimed</span>
+        {% elif all_done %}
+          <a href="/claim_plan/{{ plan.id }}" class="btn btn-primary" style="font-size:14px;padding:12px 28px;">
+            🎁 Claim your +{{ bonus }} dopamine bonus
+          </a>
+        {% else %}
+          <span class="text-sm text-muted">Check off all {{ steps|length }} steps to unlock the bonus.</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ============ BUILDER ============ -->
+    <div class="card" id="builder-card" {% if plan and steps %}style="display:none;"{% endif %}>
+      <div class="card-header">
+        <div class="card-title">{% if plan and steps %}✏️ Rebuild plan for {{ sel_date }}{% else %}➕ Plan {{ sel_date }}{% endif %}</div>
+        {% if plan and steps %}<button class="btn btn-ghost btn-sm" type="button" onclick="toggleBuilder()">✕ Cancel</button>{% endif %}
+      </div>
+
+      <p class="text-sm text-muted" style="margin-bottom:16px;">
+        Connect tasks you already track and add an amount (e.g. <em>10 pages</em>). When you mark that step done,
+        those pages are logged into the book itself.
+      </p>
+
+      <form action="/create_plan" method="POST" id="plan-form">
+        <input type="hidden" name="date" value="{{ sel_date }}">
+
+        <div class="form-group">
+          <label class="form-label">Plan name <span class="text-muted">(optional)</span></label>
+          <input type="text" name="title" placeholder="e.g. Deep focus Tuesday"
+                 value="{% if plan %}{{ plan.title }}{% endif %}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Connect a task</label>
+          {% if task_options %}
+          <div class="connect-row">
+            <div class="task-dd" id="taskDD" style="flex:2;min-width:200px;">
+              <button type="button" class="task-dd-toggle" id="taskDDToggle" onclick="ddToggle(event)">
+                <span id="taskDDLabel">Choose a task to connect…</span>
+                <span class="task-dd-caret">▾</span>
+              </button>
+              <div class="task-dd-menu" id="taskDDMenu" hidden>
+                {% for grp, items in task_options|groupby('group') %}
+                <div class="dd-cat">
+                  <button type="button" class="dd-cat-head" onclick="ddCatToggle(this)">
+                    <span class="dd-cat-name">{{ grp }}</span>
+                    <span class="dd-cat-caret">▾</span>
+                  </button>
+                  <div class="dd-sublist">
+                    {% for it in items %}
+                    <button type="button" class="task-dd-item"
+                            data-kind="{{ it.kind }}" data-id="{{ it.id }}" data-url="{{ it.url }}"
+                            data-label="{{ it.icon }} {{ it.label }}" data-unit="{{ it.unit }}"
+                            onclick="ddPick(this)">
+                      <span class="task-dd-item-name">{{ it.label }}</span>
+                      {% if it.unit %}<span class="task-dd-unit">per {{ it.unit }}</span>{% endif %}
+                    </button>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endfor %}
+                <div class="dd-cat">
+                  <button type="button" class="dd-cat-head" onclick="ddCatToggle(this)">
+                    <span class="dd-cat-name">✏️ Other</span>
+                    <span class="dd-cat-caret">▾</span>
+                  </button>
+                  <div class="dd-sublist">
+                    <button type="button" class="task-dd-item" data-custom="1"
+                            data-kind="" data-id="" data-url="" data-label="" data-unit=""
+                            onclick="ddPick(this)">
+                      <span class="task-dd-item-name">✏️ Custom step (type your own)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <input type="text" id="step-detail" placeholder="amount" style="flex:1;min-width:110px;">
+            <button type="button" class="btn btn-secondary" onclick="addFromPicker()">＋ Add</button>
+          </div>
+          <div class="text-xs text-muted" id="dd-hint" style="margin-top:6px;">Pick a task, then type how much (e.g. 10).</div>
+          {% else %}
+          <div class="text-sm text-muted" style="padding:10px 0;">
+            You have no tasks yet. Add some books, courses, research, or custom tasks first, then connect them here.
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="form-label" style="margin-bottom:8px;">Your flow</div>
+        <div id="steps-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+
+        <button type="submit" class="btn btn-primary">🗺️ Generate flowchart</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- ============ SIDEBAR: CALENDAR + RECENT ============ -->
+  <aside style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card" style="padding:18px;">
+      <div id="planner-cal"></div>
+      <div class="cal-legend">
+        <span><i class="cal-dot-key today"></i> Today</span>
+        <span><i class="cal-dot-key sel"></i> Selected</span>
+        <span><i class="cal-dot-key has"></i> Has plan</span>
+      </div>
+    </div>
+
+    {% if recent %}
+    <div class="card">
+      <div class="card-header" style="margin-bottom:14px;padding-bottom:12px;"><div class="card-title">🕑 Recent plans</div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for r in recent %}
+        <a href="/planner?date={{ r.date }}" class="mini-task-row" style="text-decoration:none;">
+          <span class="mini-task-name">{% if r.completed %}✅{% else %}🗓️{% endif %} {{ r.title }}</span>
+          <span class="mini-task-source">{{ r.date }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </aside>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EXISTING = {
+  labels:  {{ steps | map(attribute='label')   | list | tojson }},
+  urls:    {{ steps | map(attribute='ref_url')  | list | tojson }},
+  kinds:   {{ steps | map(attribute='ref_kind') | list | tojson }},
+  ids:     {{ steps | map(attribute='ref_id')   | list | tojson }},
+  amounts: {{ steps | map(attribute='amount')   | list | tojson }}
+};
+const PLAN_DATES = {{ plan_dates | tojson }};
+const SEL_DATE   = {{ sel_date | tojson }};
+
+/* ---------- Custom task dropdown ---------- */
+let ddSel = null;
+function ddToggle(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('taskDDMenu');
+  if (m) m.hidden = !m.hidden;
+}
+function ddCatToggle(btn) {
+  const cat = btn.closest('.dd-cat');
+  if (cat) cat.classList.toggle('open');
+}
+function ddPick(el) {
+  ddSel = {
+    custom: el.dataset.custom === '1',
+    kind: el.dataset.kind || '',
+    id: el.dataset.id || '',
+    url: el.dataset.url || '',
+    label: el.dataset.label || '',
+    unit: el.dataset.unit || ''
+  };
+  document.getElementById('taskDDLabel').textContent =
+    ddSel.custom ? '✏️ Custom step' : el.querySelector('.task-dd-item-name').textContent;
+  document.getElementById('taskDDMenu').hidden = true;
+  const detail = document.getElementById('step-detail');
+  const hint = document.getElementById('dd-hint');
+  if (ddSel.custom) {
+    detail.placeholder = 'type your step…';
+    hint.textContent = 'Type your own step — it won’t be linked to a task.';
+  } else if (ddSel.unit) {
+    detail.placeholder = 'amount in ' + ddSel.unit;
+    hint.textContent = 'How many ' + ddSel.unit + '? Marking it done logs them into the task.';
+  } else {
+    detail.placeholder = '(no amount needed)';
+    hint.textContent = 'Marking it done completes that task.';
+  }
+  detail.focus();
+}
+document.addEventListener('click', function (e) {
+  const dd = document.getElementById('taskDD');
+  if (dd && !dd.contains(e.target)) {
+    const m = document.getElementById('taskDDMenu');
+    if (m) m.hidden = true;
+  }
+});
+
+/* ---------- Step builder ---------- */
+function stepRow(s) {
+  const wrap = document.createElement('div');
+  wrap.className = 'step-row';
+  const num = document.createElement('span');
+  num.className = 'step-num font-mono';
+  const body = document.createElement('div');
+  body.className = 'step-body';
+  body.textContent = s.label;
+  const fields = [['steps[]', s.label], ['steps_kind[]', s.kind || ''],
+                  ['steps_id[]', s.id || ''], ['steps_url[]', s.url || ''],
+                  ['steps_amount[]', (s.amount != null ? s.amount : '')]];
+  wrap.appendChild(num);
+  wrap.appendChild(body);
+  fields.forEach(([n, v]) => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = n; inp.value = v;
+    wrap.appendChild(inp);
+  });
+  const del = document.createElement('button');
+  del.type = 'button'; del.className = 'btn btn-danger btn-sm'; del.textContent = '✕';
+  del.onclick = () => { wrap.remove(); renumber(); };
+  wrap.appendChild(del);
+  return wrap;
+}
+function renumber() {
+  document.querySelectorAll('#steps-list .step-num').forEach((h, i) => h.textContent = (i + 1));
+}
+function addStep(s) {
+  if (!s.label) return;
+  document.getElementById('steps-list').appendChild(stepRow(s));
+  renumber();
+}
+function addFromPicker() {
+  const detail = document.getElementById('step-detail');
+  const amt = (detail.value || '').trim();
+  if (!ddSel) { document.getElementById('taskDDToggle').focus(); return; }
+  let label, amount = '';
+  if (ddSel.custom) {
+    if (!amt) { detail.focus(); return; }
+    label = amt;
+    addStep({ label: label, kind: '', id: '', url: '', amount: '' });
+  } else {
+    label = ddSel.label;
+    if (ddSel.unit && amt) { label += ' — ' + amt + ' ' + ddSel.unit; amount = amt; }
+    else if (amt) { label += ' — ' + amt; amount = amt; }
+    addStep({ label: label, kind: ddSel.kind, id: ddSel.id, url: ddSel.url, amount: amount });
+  }
+  // reset
+  detail.value = '';
+  ddSel = null;
+  document.getElementById('taskDDLabel').textContent = 'Choose a task to connect…';
+  document.getElementById('step-detail').placeholder = 'amount';
+}
+function toggleBuilder() {
+  const b = document.getElementById('builder-card');
+  b.style.display = (b.style.display === 'none' || !b.style.display) ? 'block' : 'none';
+  if (b.style.display === 'block') b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+(function seed() {
+  if (EXISTING.labels && EXISTING.labels.length) {
+    EXISTING.labels.forEach((lab, i) => addStep({
+      label: lab,
+      kind: (EXISTING.kinds || [])[i] || '',
+      id: (EXISTING.ids || [])[i] || '',
+      url: (EXISTING.urls || [])[i] || '',
+      amount: (EXISTING.amounts || [])[i] || ''
+    }));
+  }
+})();
+
+/* ---------- Calendar ---------- */
+(function () {
+  const box = document.getElementById('planner-cal');
+  if (box && window.Dopamax) {
+    Dopamax.makeCalendar(box, { marked: PLAN_DATES, selected: SEL_DATE, navigate: true });
+  }
+})();
+</script>
+{% endblock %}

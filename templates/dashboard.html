@@ -71,14 +71,42 @@
       <div class="card-badge font-mono">{{ today_points }} / {{ goal }} dp</div>
     </div>
 
-    <div style="margin-bottom:20px;">
-      <div class="progress-header">
-        <span class="progress-label">Dopamine</span>
-        <span class="progress-value">{{ completion_percent }}%</span>
+    <!-- Activity ring -->
+    {% set ringpct = [completion_percent, 100]|min %}
+    {% set dash = (326.726 * (1 - ringpct / 100)) | round(2) %}
+    <div style="display:flex; align-items:center; gap:24px; margin-bottom:22px; flex-wrap:wrap;">
+      <div class="activity-ring">
+        <svg viewBox="0 0 120 120" width="132" height="132">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#4cc9f0"/>
+              <stop offset="55%" stop-color="#8b7cf6"/>
+              <stop offset="100%" stop-color="#c084fc"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-track" cx="60" cy="60" r="52"/>
+          <circle class="ring-fill {% if ringpct >= 100 %}ring-complete{% endif %}" cx="60" cy="60" r="52"
+                  stroke-dasharray="326.726" stroke-dashoffset="{{ dash }}"/>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct">{{ completion_percent }}<span>%</span></div>
+          <div class="ring-cap">of goal</div>
+        </div>
       </div>
-      <div class="progress-bar-large">
-        <div class="progress-fill {% if completion_percent >= 100 %}complete{% endif %}"
-             style="width:{{ [completion_percent, 100]|min }}%;"></div>
+      <div style="flex:1; min-width:160px;">
+        <div class="progress-header">
+          <span class="progress-label">Dopamine</span>
+          <span class="progress-value">{{ today_points }} / {{ goal }}</span>
+        </div>
+        <div class="progress-bar-large">
+          <div class="progress-fill {% if completion_percent >= 100 %}complete{% endif %}"
+               style="width:{{ ringpct }}%;"></div>
+        </div>
+        <div class="text-xs text-muted" style="margin-top:10px;">
+          {% if completion_percent >= 100 %}🎉 Goal smashed — anything now is bonus.
+          {% elif completion_percent >= 50 %}🔥 Over halfway. {{ goal - today_points }} dp to go.
+          {% else %}⚡ {{ goal - today_points }} dp left to hit today's goal.{% endif %}
+        </div>
       </div>
     </div>
 
@@ -164,12 +192,13 @@
   </div>
 </div>
 
-<!-- Add New Section -->
+<!-- Add New Section (collapsed by default) -->
 <div class="card" style="margin-top:8px;">
-  <div class="card-header">
+  <div class="card-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none;">
     <div class="card-title">➕ Add Custom Category</div>
+    <button class="btn btn-ghost btn-sm" type="button" onclick="toggleDashAdd(this)">Show</button>
   </div>
-  <form action="/add_section" method="POST">
+  <form action="/add_section" method="POST" id="dash-add-cat" style="display:none;margin-top:18px;">
     <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
       <div style="flex:1;min-width:160px;">
         <div class="form-label" style="margin-bottom:6px;">Category Name</div>
@@ -242,6 +271,15 @@ function fireConfetti() {
 }
 
 checkGoalCelebration();
+
+// ===== Collapsible "Add Custom Category" =====
+function toggleDashAdd(btn) {
+  const f = document.getElementById('dash-add-cat');
+  if (!f) return;
+  const open = (f.style.display === 'none' || !f.style.display);
+  f.style.display = open ? 'block' : 'none';
+  if (btn) btn.textContent = open ? 'Hide' : 'Show';
+}
 
 // ===== First-load name prompt =====
 (function () {

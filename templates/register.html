@@ -2,46 +2,135 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>⚡ Dopamax — Register</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('dopamax-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-brand">
-      <div class="brand-icon" style="font-size:2.5rem;">⚡</div>
-      <h1 style="font-size:1.8rem;font-weight:700;margin:0;">Dopamax</h1>
-      <div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Create your account</div>
-    </div>
 
-    {% if error %}
-    <div class="auth-error">{{ error }}</div>
-    {% endif %}
+<!-- Aurora background -->
+<div class="aurora-bg" aria-hidden="true">
+  <div class="ab ab1"></div><div class="ab ab2"></div>
+  <div class="ab ab3"></div><div class="ab ab4"></div>
+</div>
 
-    <form method="POST" action="/register">
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input type="email" name="email" placeholder="you@example.com" required autofocus>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" placeholder="Min. 6 characters" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Confirm Password</label>
-        <input type="password" name="confirm_password" placeholder="••••••••" required>
-      </div>
-      <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;">
-        🚀 Create Account
-      </button>
-    </form>
+<!-- LightPillar WebGL background -->
+<div class="light-pillar-container" id="light-pillar" aria-hidden="true" style="mix-blend-mode:screen;"></div>
 
-    <div class="auth-footer">
-      Already have an account?
-      <a href="/login" style="color:var(--accent);">Sign in</a>
+<!-- Cursor-following spotlight -->
+<div class="auth-spotlight" id="auth-spotlight" aria-hidden="true"></div>
+
+<!-- Top nav -->
+<div class="auth-hero-nav">
+  <div class="brand-row">
+    <div class="brand-icon">⚡</div>
+    <span class="wordmark">Dopamax</span>
+  </div>
+  <span class="nav-chip">Productivity Engine v2.0</span>
+</div>
+
+<div class="auth-hero">
+
+  <!-- Left: hero copy -->
+  <div class="auth-hero-left">
+    <h1 class="auth-hero-headline">
+      <span class="line-serif">Rewire your</span>
+      <span class="line-sans">reward system.</span>
+    </h1>
+
+    <p class="auth-hero-sub">
+      Set your own dopamine rates for every page read, lecture watched and habit kept.
+      Build streaks. Climb from Seedling to Eternal.
+    </p>
+
+    <div class="auth-hero-stats">
+      <div>
+        <div class="ahs-value">2 min</div>
+        <div class="ahs-label">To Get Started</div>
+      </div>
+      <div>
+        <div class="ahs-value">Free</div>
+        <div class="ahs-label">Forever</div>
+      </div>
+      <div>
+        <div class="ahs-value">100%</div>
+        <div class="ahs-label">Your Data</div>
+      </div>
     </div>
   </div>
+
+  <!-- Right: glass register card -->
+  <div class="auth-hero-right">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1 style="font-size:1.9rem;margin:0;">Create account</h1>
+        <div style="color:var(--text-muted);font-size:0.82rem;margin-top:6px;">Your streak starts today</div>
+      </div>
+
+      {% if error %}
+      <div class="auth-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/register">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" placeholder="Min. 6 characters" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" name="confirm_password" placeholder="••••••••" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;justify-content:center;">
+          🚀 Create Account
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account?
+        <a href="/login">Sign in</a>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="{{ url_for('static', filename='lightpillar.js') }}"></script>
+<script>
+(function () {
+  var el = document.getElementById('light-pillar');
+  if (el && window.initLightPillar) {
+    initLightPillar(el, { topColor: '#c084fc', bottomColor: '#38bdf8', intensity: 0.85, glowAmount: 0.006, pillarWidth: 3.0, pillarRotation: 90, rotationSpeed: 0.25 });
+  }
+})();
+
+// Smoothed cursor spotlight (lerp)
+(function () {
+  if (window.matchMedia('(hover: none)').matches) return;
+  var el = document.getElementById('auth-spotlight');
+  var mx = innerWidth / 2, my = innerHeight * 0.4, sx = mx, sy = my, raf;
+  addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; }, { passive: true });
+  (function loop() {
+    sx += (mx - sx) * 0.1;
+    sy += (my - sy) * 0.1;
+    el.style.setProperty('--sx', sx + 'px');
+    el.style.setProperty('--sy', sy + 'px');
+    raf = requestAnimationFrame(loop);
+  })();
+})();
+</script>
+
 </body>
 </html>

@@ -5,19 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>⚡ Dopamax</title>
   <script>
-    // Apply saved theme immediately to avoid a flash of the wrong theme
+    // Apply saved theme + mode immediately to avoid a flash of the wrong theme
     (function () {
+      var LIGHT = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1 };
       try {
         var t = localStorage.getItem('dopamax-theme') || '{{ theme|default("dark") }}';
         document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.setAttribute('data-mode', LIGHT[t] ? 'light' : 'dark');
       } catch (e) {}
     })();
   </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+  <!-- Install-to-home-screen (PWA) -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <meta name="theme-color" content="#08080f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Dopamax">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-180.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 </head>
 <body>
+
+<!-- Animated aurora background -->
+<div class="aurora-bg" aria-hidden="true">
+  <div class="ab ab1"></div><div class="ab ab2"></div>
+  <div class="ab ab3"></div><div class="ab ab4"></div>
+</div>
+
+<!-- Living dopamine particle field -->
+<canvas id="spark-canvas" aria-hidden="true"></canvas>
+
+<!-- Slow drifting beam -->
+<div class="bg-beam" aria-hidden="true"></div>
 
 <div class="container">
 
@@ -44,6 +70,11 @@
       <a href="/analytics" class="sidebar-link {% if request.path == '/analytics' %}active{% endif %}">
         <span class="nav-icon">📊</span>
         Analytics
+      </a>
+
+      <a href="/planner" class="sidebar-link {% if request.path == '/planner' %}active{% endif %}">
+        <span class="nav-icon">🗺️</span>
+        Day Planner
       </a>
 
       <hr class="sidebar-divider">
@@ -111,6 +142,42 @@
 
 </div>
 
+<!-- GlassSurface SVG displacement filter (used by the Liquid Glass theme) -->
+<svg id="dpx-glass-svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden;">
+  <defs>
+    <filter id="dpx-glass" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+      <feImage id="dpx-glass-map" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="map"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="-160" xChannelSelector="R" yChannelSelector="G" result="dispRed"/>
+      <feColorMatrix in="dispRed" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="-150" xChannelSelector="R" yChannelSelector="G" result="dispGreen"/>
+      <feColorMatrix in="dispGreen" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="-140" xChannelSelector="R" yChannelSelector="G" result="dispBlue"/>
+      <feColorMatrix in="dispBlue" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue"/>
+      <feBlend in="red" in2="green" mode="screen" result="rg"/>
+      <feBlend in="rg" in2="blue" mode="screen" result="output"/>
+      <feGaussianBlur in="output" stdDeviation="0.6"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- Per-task details modal -->
+<div class="modal-overlay" id="task-details-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <div class="modal-title" id="td-title">Task details</div>
+      <button class="modal-close" onclick="closeTaskDetails()" aria-label="Close">✕</button>
+    </div>
+    <div id="td-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px;"></div>
+    <div class="flex gap-2" id="td-summary" style="margin-bottom:14px;flex-wrap:wrap;"></div>
+    <div style="position:relative;height:260px;"><canvas id="td-chart"></canvas></div>
+    <div class="empty-state" id="td-empty" style="display:none;padding:22px;">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">Trend starts here</div>
+      <div class="empty-desc">Per-task history records from now on — log progress and the day-by-day trend will fill in.</div>
+    </div>
+  </div>
+</div>
+
 <script>
 async function loadSidebarStats() {
   try {
@@ -138,6 +205,366 @@ function initEmojiPickers() {
   });
 }
 initEmojiPickers();
+
+// Cursor spotlight lighting on glass cards (skipped on touch devices)
+if (!window.matchMedia('(hover: none)').matches) {
+  document.addEventListener('pointermove', function (e) {
+    var card = e.target.closest('.card, .stat-card, .item-card, .chart-card, .settings-section');
+    if (!card) return;
+    var r = card.getBoundingClientRect();
+    card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  }, { passive: true });
+}
+
+// ===== GlassSurface displacement map (Liquid Glass theme) =====
+(function () {
+  const fe = document.getElementById('dpx-glass-map');
+  if (!fe) return;
+  const w = 320, h = 200, rad = 22, edge = Math.min(w, h) * 0.07 * 0.5;
+  const svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs>' +
+    '<linearGradient id="rg" x1="100%" y1="0%" x2="0%" y2="0%"><stop offset="0%" stop-color="#0000"/><stop offset="100%" stop-color="red"/></linearGradient>' +
+    '<linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#0000"/><stop offset="100%" stop-color="blue"/></linearGradient>' +
+    '</defs>' +
+    '<rect width="' + w + '" height="' + h + '" fill="black"/>' +
+    '<rect width="' + w + '" height="' + h + '" rx="' + rad + '" fill="url(#rg)"/>' +
+    '<rect width="' + w + '" height="' + h + '" rx="' + rad + '" fill="url(#bg)" style="mix-blend-mode:difference"/>' +
+    '<rect x="' + edge + '" y="' + edge + '" width="' + (w - edge * 2) + '" height="' + (h - edge * 2) + '" rx="' + rad + '" fill="hsl(0 0% 60% / 0.93)" style="filter:blur(11px)"/>' +
+    '</svg>';
+  fe.setAttribute('href', 'data:image/svg+xml,' + encodeURIComponent(svg));
+})();
+
+// ===== Per-task dopamine details modal =====
+let tdChart = null;
+async function openTaskDetails(kind, id, title) {
+  const modal = document.getElementById('task-details-modal');
+  if (!modal) return;
+  document.getElementById('td-summary').innerHTML = '';
+  document.getElementById('td-stats').innerHTML = '';
+  modal.classList.add('open');
+  const canvas = document.getElementById('td-chart');
+  const empty = document.getElementById('td-empty');
+  try {
+    const r = await fetch('/api/task_history/' + kind + '/' + id);
+    const d = await r.json();
+    document.getElementById('td-title').textContent = '📊 ' + (d.title || title || 'Task');
+    // Current task state — always shown
+    if (d.stats && d.stats.length) {
+      document.getElementById('td-stats').innerHTML = d.stats.map(function (s) {
+        return '<div class="summary-item" style="flex-direction:column;align-items:flex-start;gap:2px;">' +
+          '<span class="text-xs text-muted" style="font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.5px;">' + s.label + '</span>' +
+          '<span style="font-weight:700;font-size:15px;color:var(--text-primary);">' + s.value + '</span></div>';
+      }).join('');
+    }
+    // Streak / history chips
+    document.getElementById('td-summary').innerHTML =
+      '<span class="dopamine-pill">⚡ ' + d.total + ' logged</span>' +
+      '<span class="status-badge" style="background:rgba(240,128,64,0.15);color:#f08040;">🔥 ' + (d.current_streak || 0) + '-day streak</span>' +
+      '<span class="card-badge font-mono">🏆 best ' + (d.longest_streak || 0) + 'd</span>' +
+      '<span class="card-badge font-mono">' + (d.days_active || 0) + ' active days</span>' +
+      '<span class="card-badge font-mono">avg ' + (d.avg || 0) + '</span>' +
+      '<span class="card-badge font-mono">peak ' + d.best + ' dp</span>';
+    if (!d.dates || d.dates.length === 0) {
+      canvas.style.display = 'none'; empty.style.display = 'block';
+      if (tdChart) { tdChart.destroy(); tdChart = null; }
+      return;
+    }
+    canvas.style.display = 'block'; empty.style.display = 'none';
+    let cum = 0; const cumData = d.points.map(p => (cum += p));
+    const styles = getComputedStyle(document.documentElement);
+    const accent = (styles.getPropertyValue('--accent').trim() || '#8b7cf6');
+    const accent2 = (styles.getPropertyValue('--accent2').trim() || '#4cc9f0');
+    if (tdChart) tdChart.destroy();
+    tdChart = new Chart(canvas, {
+      data: {
+        labels: d.dates,
+        datasets: [
+          { type: 'bar', label: 'Earned', data: d.points, backgroundColor: accent + 'cc', borderColor: accent, borderWidth: 1, borderRadius: 4, borderSkipped: false, order: 2 },
+          { type: 'line', label: 'Cumulative', data: cumData, borderColor: accent2, backgroundColor: 'transparent', borderWidth: 2, tension: 0.35, pointRadius: 3, pointBackgroundColor: accent2, yAxisID: 'y1', order: 1 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#9aa3bc', font: { size: 11 }, usePointStyle: true } },
+          tooltip: { backgroundColor: '#1e2735', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, titleColor: '#e8edf5', bodyColor: '#7a8aa0', padding: 10, cornerRadius: 8 }
+        },
+        scales: {
+          x: { ticks: { color: '#4a5668', font: { family: "'Space Mono', monospace", size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { beginAtZero: true, ticks: { color: '#4a5668', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y1: { position: 'right', beginAtZero: true, ticks: { color: '#4a5668', font: { size: 10 } }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  } catch (e) {
+    canvas.style.display = 'none'; empty.style.display = 'block';
+  }
+}
+function closeTaskDetails() {
+  const m = document.getElementById('task-details-modal');
+  if (m) m.classList.remove('open');
+}
+document.addEventListener('click', function (e) {
+  const b = e.target.closest('.js-task-details');
+  if (b) { e.preventDefault(); openTaskDetails(b.dataset.kind, b.dataset.id, b.dataset.title); return; }
+  const modal = document.getElementById('task-details-modal');
+  if (modal && modal.classList.contains('open') && e.target === modal) closeTaskDetails();
+});
+
+// ===== 3D cursor tilt on cards (fine-pointer, motion-allowed only) =====
+(function () {
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const MAX = 5; // degrees
+  let last = null;
+  // Inject the BorderGlow edge-light layer into each tile
+  document.querySelectorAll('.stat-card, .item-card').forEach(function (c) {
+    if (!c.querySelector(':scope > .edge-light')) {
+      const s = document.createElement('span');
+      s.className = 'edge-light';
+      c.insertBefore(s, c.firstChild);
+    }
+  });
+  function reset(c) {
+    if (!c) return;
+    c.style.setProperty('--tilt-x', '0deg');
+    c.style.setProperty('--tilt-y', '0deg');
+    c.style.setProperty('--edge-proximity', '0');
+  }
+  document.addEventListener('pointermove', function (e) {
+    const card = e.target.closest('.stat-card, .item-card');
+    if (card !== last) { reset(last); last = card; }
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    const px = lx / r.width - 0.5, py = ly / r.height - 0.5;
+    card.style.setProperty('--tilt-y', (px * MAX).toFixed(2) + 'deg');
+    card.style.setProperty('--tilt-x', (-py * MAX).toFixed(2) + 'deg');
+    // BorderGlow: edge proximity (0-100) + cursor angle
+    const cx = r.width / 2, cy = r.height / 2;
+    const dx = lx - cx, dy = ly - cy;
+    let kx = Infinity, ky = Infinity;
+    if (dx !== 0) kx = cx / Math.abs(dx);
+    if (dy !== 0) ky = cy / Math.abs(dy);
+    const edge = Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
+    let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if (deg < 0) deg += 360;
+    card.style.setProperty('--edge-proximity', (edge * 100).toFixed(2));
+    card.style.setProperty('--cursor-angle', deg.toFixed(2) + 'deg');
+  }, { passive: true });
+  document.addEventListener('pointerleave', function () { reset(last); last = null; });
+})();
+
+// ===== Tabs (Ongoing / Completed etc.) =====
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (window.__revealAll) window.__revealAll(panel);
+}
+
+// ===== Living particle field (dopamine motes drifting up) =====
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.getElementById('spark-canvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  let W, H, parts = [];
+  const COLORS = ['rgba(139,124,246,', 'rgba(76,201,240,', 'rgba(192,132,252,', 'rgba(240,192,64,'];
+  function size() { W = c.width = window.innerWidth; H = c.height = window.innerHeight; }
+  function makeP(initial) {
+    return {
+      x: Math.random() * W,
+      y: initial ? Math.random() * H : H + 12,
+      r: Math.random() * 2 + 0.6,
+      s: Math.random() * 0.45 + 0.12,
+      a: Math.random() * 0.5 + 0.18,
+      c: COLORS[Math.floor(Math.random() * COLORS.length)],
+      tw: Math.random() * Math.PI * 2,
+      drift: (Math.random() - 0.5) * 0.25
+    };
+  }
+  size();
+  const N = Math.min(48, Math.floor(window.innerWidth / 28));
+  for (let i = 0; i < N; i++) parts.push(makeP(true));
+  let raf;
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      p.y -= p.s; p.x += p.drift; p.tw += 0.02;
+      const tw = (Math.sin(p.tw) + 1) / 2;
+      if (p.y < -12) { parts[i] = makeP(false); continue; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, 6.2832);
+      ctx.fillStyle = p.c + (p.a * tw).toFixed(2) + ')';
+      ctx.shadowColor = p.c + '0.8)';
+      ctx.shadowBlur = 6;
+      ctx.fill();
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  tick();
+  window.addEventListener('resize', () => { cancelAnimationFrame(raf); size(); tick(); }, { passive: true });
+})();
+
+// ===== Scroll reveal — content comes alive as it enters view =====
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const blockSel = '.card, .chart-card, .settings-section, .table-container, .flow-node';
+  const tiltSel = '.stat-card, .item-card';
+  const nodes = [];
+  document.querySelectorAll(blockSel).forEach(el => {
+    if (el.closest('.add-form-card')) return;
+    el.classList.add('rv'); nodes.push(el);
+  });
+  document.querySelectorAll(tiltSel).forEach(el => { el.classList.add('rvf'); nodes.push(el); });
+  const show = el => el.classList.add('in');
+  window.__revealAll = scope => (scope || document).querySelectorAll('.rv, .rvf').forEach(show);
+
+  if (!('IntersectionObserver' in window)) { nodes.forEach(show); return; }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { show(e.target); io.unobserve(e.target); } });
+  }, { threshold: 0.06, rootMargin: '0px 0px -30px 0px' });
+  nodes.forEach(el => io.observe(el));
+  // Reveal whatever is already on-screen next frame (no above-fold flash)
+  requestAnimationFrame(() => {
+    nodes.forEach(el => { if (el.getBoundingClientRect().top < window.innerHeight * 0.95) show(el); });
+  });
+  // Safety net: never leave content hidden
+  setTimeout(() => nodes.forEach(show), 1400);
+})();
+
+// ===== Reusable calendar (used by Planner + Analytics) =====
+window.Dopamax = window.Dopamax || {};
+Dopamax.makeCalendar = function (container, opts) {
+  opts = opts || {};
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const marked = opts.marked || [];
+  const today = opts.today || new Date().toISOString().slice(0, 10);
+  let selected = opts.selected || today;
+  const onSelect = opts.onSelect || function () {};
+  const navigate = !!opts.navigate;
+  const parts = (selected || today).split('-');
+  let cy = parseInt(parts[0], 10), cm = parseInt(parts[1], 10) - 1;
+  const pad = n => (n < 10 ? '0' : '') + n;
+  const ymd = (y, m, d) => y + '-' + pad(m + 1) + '-' + pad(d);
+
+  function cell(day, muted, dateStr) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'cal-cell' + (muted ? ' muted' : '') +
+      (dateStr === today ? ' today' : '') + (dateStr === selected ? ' sel' : '');
+    el.innerHTML = day + (marked.indexOf(dateStr) > -1 ? '<i class="cal-dot"></i>' : '');
+    el.onclick = () => {
+      selected = dateStr;
+      if (navigate) { window.location.href = '/planner?date=' + dateStr; return; }
+      render(); onSelect(dateStr);
+    };
+    return el;
+  }
+  function render() {
+    container.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'cal-head';
+    head.innerHTML = '<button type="button" class="cal-nav" data-d="-1" aria-label="Previous month">‹</button>' +
+      '<div class="cal-title">' + MONTHS[cm] + ' ' + cy + '</div>' +
+      '<button type="button" class="cal-nav" data-d="1" aria-label="Next month">›</button>';
+    container.appendChild(head);
+    const wd = document.createElement('div');
+    wd.className = 'cal-weekdays';
+    wd.innerHTML = '<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>';
+    container.appendChild(wd);
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+    container.appendChild(grid);
+    const firstIdx = (new Date(cy, cm, 1).getDay() + 6) % 7;
+    const dim = new Date(cy, cm + 1, 0).getDate();
+    const prev = new Date(cy, cm, 0).getDate();
+    for (let i = 0; i < firstIdx; i++) {
+      const d = prev - firstIdx + 1 + i;
+      grid.appendChild(cell(d, true, ymd(cm === 0 ? cy - 1 : cy, cm === 0 ? 11 : cm - 1, d)));
+    }
+    for (let d = 1; d <= dim; d++) grid.appendChild(cell(d, false, ymd(cy, cm, d)));
+    const trail = (7 - ((firstIdx + dim) % 7)) % 7;
+    for (let i = 1; i <= trail; i++) {
+      grid.appendChild(cell(i, true, ymd(cm === 11 ? cy + 1 : cy, cm === 11 ? 0 : cm + 1, i)));
+    }
+    head.querySelectorAll('.cal-nav').forEach(b => {
+      b.onclick = () => {
+        cm += parseInt(b.dataset.d, 10);
+        if (cm < 0) { cm = 11; cy--; }
+        if (cm > 11) { cm = 0; cy++; }
+        render();
+      };
+    });
+  }
+  render();
+  return { setSelected: s => { selected = s; render(); } };
+};
+
+// ===== Collapsible add-task form =====
+function toggleAddForm(btn) {
+  const f = document.getElementById('add-form');
+  if (!f) return;
+  const open = (f.style.display === 'none' || !f.style.display);
+  f.style.display = open ? 'block' : 'none';
+  if (btn) btn.textContent = open ? '✕ Close' : '➕ Add task';
+  if (open) f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ===== Count-up animation on numbers =====
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  function animateCount(el) {
+    const raw = (el.textContent || '').trim();
+    const m = raw.match(/^([\d,]+(?:\.\d+)?)(\D*)$/);
+    if (!m) return;
+    const target = parseFloat(m[1].replace(/,/g, ''));
+    if (!isFinite(target) || target === 0) return;
+    const suffix = m[2] || '';
+    const decimals = (m[1].split('.')[1] || '').length;
+    const dur = 750, start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = target * eased;
+      el.textContent = (decimals ? val.toFixed(decimals) : Math.round(val).toLocaleString()) + suffix;
+      if (p < 1) requestAnimationFrame(tick);
+      else el.textContent = m[1] + suffix;
+    }
+    requestAnimationFrame(tick);
+  }
+  window.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.stat-value, .streak-number').forEach(animateCount);
+  });
+})();
+
+// ===== Earned-dopamine burst (after logging/completing) =====
+function showEarnedBurst(amount) {
+  const el = document.createElement('div');
+  el.className = 'earned-burst';
+  el.textContent = '+' + (Math.round(amount * 10) / 10) + ' ⚡';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1700);
+  if (window.confetti) {
+    confetti({ particleCount: 70, spread: 75, startVelocity: 38, origin: { y: 0.32 },
+               colors: ['#8b7cf6', '#4cc9f0', '#f0c040', '#34d399', '#c084fc'] });
+  }
+}
+(function () {
+  const params = new URLSearchParams(location.search);
+  const earned = parseFloat(params.get('earned'));
+  if (earned && earned > 0) {
+    setTimeout(() => showEarnedBurst(earned), 150);
+    params.delete('earned');
+    const qs = params.toString();
+    history.replaceState({}, '', location.pathname + (qs ? '?' + qs : ''));
+  }
+})();
 </script>
 
 {% block scripts %}{% endblock %}

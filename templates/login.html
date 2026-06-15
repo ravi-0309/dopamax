@@ -2,42 +2,137 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>⚡ Dopamax — Login</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('dopamax-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-brand">
-      <div class="brand-icon" style="font-size:2.5rem;">⚡</div>
-      <h1 style="font-size:1.8rem;font-weight:700;margin:0;">Dopamax</h1>
-      <div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Productivity Engine v2.0</div>
-    </div>
 
-    {% if error %}
-    <div class="auth-error">{{ error }}</div>
-    {% endif %}
+<!-- Aurora background -->
+<div class="aurora-bg" aria-hidden="true">
+  <div class="ab ab1"></div><div class="ab ab2"></div>
+  <div class="ab ab3"></div><div class="ab ab4"></div>
+</div>
 
-    <form method="POST" action="/login">
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input type="email" name="email" placeholder="you@example.com" required autofocus>
+<!-- FloatingLines WebGL background -->
+<div class="light-pillar-container" id="floating-lines" aria-hidden="true" style="mix-blend-mode:screen;opacity:0.28;pointer-events:none;z-index:0;"></div>
+
+<!-- Cursor-following spotlight -->
+<div class="auth-spotlight" id="auth-spotlight" aria-hidden="true"></div>
+
+<!-- Top nav -->
+<div class="auth-hero-nav">
+  <div class="brand-row">
+    <div class="brand-icon">⚡</div>
+    <span class="wordmark">Dopamax</span>
+  </div>
+  <span class="nav-chip">Rewire your Brain</span>
+</div>
+
+<div class="auth-hero">
+
+  <!-- Left: hero copy -->
+  <div class="auth-hero-left">
+    <h1 class="auth-hero-headline">
+      <span class="line-serif">Effort becomes</span>
+      <span class="line-sans">addictive.</span>
+    </h1>
+
+    <p class="auth-hero-sub">
+      Dopamax turns books, courses, research and habits into dopamine points —
+      so your brain starts craving progress instead of distraction.
+    </p>
+
+    <div class="auth-hero-stats">
+      <div>
+        <div class="ahs-value">∞</div>
+        <div class="ahs-label">Custom Categories</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" name="password" placeholder="••••••••" required>
+      <div>
+        <div class="ahs-value">365d</div>
+        <div class="ahs-label">Streak Levels</div>
       </div>
-      <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;">
-        ⚡ Sign In
-      </button>
-    </form>
-
-    <div class="auth-footer">
-      Don't have an account?
-      <a href="/register" style="color:var(--accent);">Create one</a>
+      <div>
+        <div class="ahs-value">12</div>
+        <div class="ahs-label">Ranks to Climb</div>
+      </div>
     </div>
   </div>
+
+  <!-- Right: glass sign-in card -->
+  <div class="auth-hero-right">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <h1 style="font-size:1.9rem;margin:0;">Welcome back</h1>
+        <div style="color:var(--text-muted);font-size:0.82rem;margin-top:6px;">Sign in to continue your streak</div>
+      </div>
+
+      {% if error %}
+      <div class="auth-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/login">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="margin-top:8px;justify-content:center;">
+          ⚡ Sign In
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Don't have an account?
+        <a href="/register">Create one</a>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="{{ url_for('static', filename='floatinglines.js') }}"></script>
+<script>
+(function () {
+  var el = document.getElementById('floating-lines');
+  if (el && window.initFloatingLines) {
+    initFloatingLines(el, {
+      enabledWaves: ['top', 'middle', 'bottom'],
+      lineCount: [5, 7, 9],
+      lineDistance: [9, 7, 5],
+      linesGradient: ['#4cc9f0', '#8b7cf6', '#c084fc', '#f472b6'],
+      bendRadius: 5.0, bendStrength: -0.5, interactive: false, parallax: false, animationSpeed: 0.55
+    });
+  }
+})();
+
+// Smoothed cursor spotlight (lerp, like the template's RAF loop)
+(function () {
+  if (window.matchMedia('(hover: none)').matches) return;
+  var el = document.getElementById('auth-spotlight');
+  var mx = innerWidth / 2, my = innerHeight * 0.4, sx = mx, sy = my, raf;
+  addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; }, { passive: true });
+  (function loop() {
+    sx += (mx - sx) * 0.1;
+    sy += (my - sy) * 0.1;
+    el.style.setProperty('--sx', sx + 'px');
+    el.style.setProperty('--sy', sy + 'px');
+    raf = requestAnimationFrame(loop);
+  })();
+})();
+</script>
+
 </body>
 </html>
