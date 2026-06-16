@@ -3,6 +3,7 @@ services:
     name: dopamax
     runtime: python
     plan: free
+    region: singapore     # close to India (you) and Seoul (your database) = much faster
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"
     envVars:
