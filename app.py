@@ -3,6 +3,9 @@ import datetime
 import hashlib
 import os
 import secrets
+import smtplib
+import ssl
+from email.message import EmailMessage
 import db  # database compatibility layer (SQLite locally, Postgres via DATABASE_URL)
 
 app = Flask(__name__)
@@ -126,6 +129,17 @@ def init_db():
     )
     """)
 
+    # Password reset tokens
+    cursor.execute(f"""
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id {PK},
+        user_id INTEGER,
+        token TEXT,
+        expires_at TEXT,
+        used INTEGER DEFAULT 0
+    )
+    """)
+
     # Per-task dopamine history (for the per-task details plot)
     cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS task_log (
@@ -224,6 +238,38 @@ def ensure_user_settings(user_id):
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
+def send_email(to_addr, subject, body):
+    """Send an email via SMTP (configured through env vars). Returns True on success.
+    Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally SMTP_FROM)."""
+    host = os.environ.get("SMTP_HOST")
+    user = os.environ.get("SMTP_USER")
+    pw = os.environ.get("SMTP_PASS")
+    port = int(os.environ.get("SMTP_PORT", "587"))
+    sender = os.environ.get("SMTP_FROM", user)
+    if not (host and user and pw):
+        print("send_email: SMTP not configured — skipping send")
+        return False
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_addr
+    msg.set_content(body)
+    try:
+        ctx = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=ctx) as s:
+                s.login(user, pw)
+                s.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port) as s:
+                s.starttls(context=ctx)
+                s.login(user, pw)
+                s.send_message(msg)
+        return True
+    except Exception as e:
+        print("send_email error:", e)
+        return False
 
 def current_user():
     return session.get("user_id")
@@ -433,6 +479,69 @@ def login():
             return redirect("/")
         error = "Invalid email or password."
     return render_template("login.html", error=error)
+
+@app.route("/forgot", methods=["GET", "POST"])
+def forgot():
+    if current_user():
+        return redirect("/")
+    sent = False
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        conn = db.connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE email=?", (email,))
+        u = cursor.fetchone()
+        if u:
+            token = secrets.token_urlsafe(32)
+            expires = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat()
+            cursor.execute(
+                "INSERT INTO password_resets (user_id, token, expires_at, used) VALUES (?,?,?,0)",
+                (u[0], token, expires)
+            )
+            conn.commit()
+            link = url_for("reset_password", token=token, _external=True, _scheme="https")
+            send_email(
+                email,
+                "Reset your Dopamax password",
+                "Hi,\n\nWe got a request to reset your Dopamax password. "
+                "Click the link below within 1 hour to set a new one:\n\n"
+                + link +
+                "\n\nIf you didn't request this, you can safely ignore this email."
+            )
+        conn.close()
+        sent = True  # always show the same message (don't reveal which emails exist)
+    return render_template("forgot.html", sent=sent)
+
+@app.route("/reset/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    conn = db.connect()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, expires_at, used FROM password_resets WHERE token=?", (token,))
+    row = cursor.fetchone()
+    valid = False
+    if row and not row[3]:
+        try:
+            if datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(row[2]):
+                valid = True
+        except Exception:
+            valid = False
+
+    error = None
+    if request.method == "POST" and valid:
+        pw = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+        if len(pw) < 6:
+            error = "Password must be at least 6 characters."
+        elif pw != confirm:
+            error = "Passwords do not match."
+        else:
+            cursor.execute("UPDATE users SET password_hash=? WHERE id=?", (hash_password(pw), row[1]))
+            cursor.execute("UPDATE password_resets SET used=1 WHERE id=?", (row[0],))
+            conn.commit()
+            conn.close()
+            return render_template("reset.html", token=token, valid=True, done=True, error=None)
+    conn.close()
+    return render_template("reset.html", token=token, valid=valid, done=False, error=error)
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
