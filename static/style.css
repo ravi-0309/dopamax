@@ -2269,21 +2269,42 @@ tbody td:first-child { color: var(--text-primary); font-weight: 500; }
   padding: 8px 16px;
 }
 
-/* How-it-works block on the auth hero */
+/* How-it-works block on the auth hero (click to expand) */
 .auth-how {
   margin-top: 34px;
   animation: fadeUp 1s var(--ease-premium) both;
   animation-delay: 1s;
 }
-.auth-how-label {
+.auth-how-toggle {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.55);
-  margin-bottom: 14px;
+  color: rgba(255,255,255,0.6);
+  transition: color 0.2s ease;
 }
-.auth-how-steps { display: flex; flex-direction: column; gap: 13px; max-width: 380px; }
+.auth-how-toggle:hover { color: rgba(255,255,255,0.9); }
+.auth-how-toggle::-webkit-details-marker { display: none; }
+.auth-how-arrow {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.22s var(--ease-out);
+}
+.auth-how[open] .auth-how-arrow { transform: rotate(90deg); }
+.auth-how-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  max-width: 380px;
+  margin-top: 16px;
+  animation: fadeUp 0.4s var(--ease-out) both;
+}
 .auth-how-step {
   display: flex;
   gap: 12px;
@@ -2304,7 +2325,8 @@ tbody td:first-child { color: var(--text-primary); font-weight: 500; }
   font-weight: 700; font-size: 13px;
   color: #fff;
 }
-:root[data-mode="light"] .auth-how-label { color: var(--text-muted); }
+:root[data-mode="light"] .auth-how-toggle { color: var(--text-muted); }
+:root[data-mode="light"] .auth-how-toggle:hover { color: var(--text-primary); }
 :root[data-mode="light"] .auth-how-step { color: var(--text-secondary); }
 :root[data-mode="light"] .auth-how-step strong { color: var(--text-primary); }
 :root[data-mode="light"] .auth-how-num { background: var(--accent-dim); border-color: var(--border-accent); color: var(--accent); }
