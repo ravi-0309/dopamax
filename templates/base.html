@@ -7,7 +7,7 @@
   <script>
     // Apply saved theme + mode immediately to avoid a flash of the wrong theme
     (function () {
-      var LIGHT = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1 };
+      var LIGHT = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1, minimalism:1 };
       try {
         var t = localStorage.getItem('dopamax-theme') || '{{ theme|default("dark") }}';
         document.documentElement.setAttribute('data-theme', t);
@@ -16,6 +16,8 @@
     })();
   </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme-minimal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme-glass.css') }}">
 
   <!-- Install-to-home-screen (PWA) -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">

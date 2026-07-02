@@ -9,12 +9,14 @@
       try {
         var t = localStorage.getItem('dopamax-theme') || 'dark';
         document.documentElement.setAttribute('data-theme', t);
-        var L = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1 };
+        var L = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1, minimalism:1 };
         document.documentElement.setAttribute('data-mode', L[t] ? 'light' : 'dark');
       } catch (e) {}
     })();
   </script>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme-minimal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme-glass.css') }}">
 </head>
 <body>
 

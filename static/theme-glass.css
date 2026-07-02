@@ -1,0 +1,154 @@
+/* ============================================================
+   DOPAMAX THEME: GLASSMORPHISM — warm evening room
+   Dark amber scene · blurred bokeh light · orange accents ·
+   heavy frosted panels with soft white borders.
+   Active when <html data-theme="glassmorphism"> (dark mode).
+   Loaded after style.css.
+   ============================================================ */
+:root[data-theme="glassmorphism"] {
+  --bg-base: #16100a;
+  --bg-surface: rgba(32, 22, 13, 0.55);
+  --bg-card: rgba(255, 255, 255, 0.07);
+  --bg-elevated: rgba(255, 255, 255, 0.10);
+  --bg-hover: rgba(255, 255, 255, 0.13);
+  --bg-primary: #16100a;
+
+  --accent: #ff8a4d;
+  --accent-dim: rgba(255, 138, 77, 0.15);
+  --accent-glow: rgba(255, 138, 77, 0.45);
+  --accent2: #ffc46b;
+  --accent2-dim: rgba(255, 196, 107, 0.13);
+  --accent3: #ffb181;
+  --accent3-dim: rgba(255, 177, 129, 0.13);
+  --success: #7fd39a; --success-dim: rgba(127, 211, 154, 0.13);
+  --danger: #ff7a6b;  --danger-dim: rgba(255, 122, 107, 0.13);
+  --warning: #ffd166;
+
+  --text-primary: #f6f0e8;
+  --text-secondary: #cec3b6;
+  --text-muted: #93887b;
+  --text-accent: #ffb181;
+
+  --border: rgba(255, 255, 255, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(255, 150, 80, 0.45);
+
+  --glass-blur: 26px;
+  --glass-reflect: linear-gradient(90deg, transparent 4%, rgba(255,255,255,0.45) 50%, transparent 96%);
+  --grad-aurora: linear-gradient(135deg, #ffd29b 0%, #ff9440 45%, #ff6a2b 78%, #e0501a 110%);
+  --grad-violet: linear-gradient(135deg, #ffb347, #ff8a4d 50%, #f4622a);
+  --grad-gold: linear-gradient(135deg, #ffe29b, #ffc46b 55%, #e8950f);
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-lg: 24px;
+
+  --shadow-card: 0 12px 38px rgba(8, 4, 0, 0.45);
+  --shadow-float: 0 22px 56px rgba(8, 4, 0, 0.6);
+  --shadow-glow: 0 0 28px rgba(255, 130, 60, 0.30);
+  --shadow-glow2: 0 0 28px rgba(255, 190, 110, 0.20);
+}
+
+/* ---- warm blurred evening scene ---- */
+:root[data-theme="glassmorphism"] body {
+  background:
+    radial-gradient(ellipse 60% 45% at 8% 95%, rgba(255, 122, 40, 0.26), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 12%, rgba(148, 176, 122, 0.14), transparent 60%),
+    radial-gradient(ellipse 65% 50% at 75% 95%, rgba(112, 78, 38, 0.28), transparent 65%),
+    radial-gradient(ellipse 55% 40% at 20% 5%, rgba(66, 80, 56, 0.30), transparent 60%),
+    linear-gradient(160deg, #191108, #281c10 55%, #150f09);
+  background-attachment: fixed;
+}
+/* recolor the aurora blobs to lantern light */
+:root[data-theme="glassmorphism"] .aurora-bg .ab1 { background: radial-gradient(circle, #7a3c12, transparent 65%); }
+:root[data-theme="glassmorphism"] .aurora-bg .ab2 { background: radial-gradient(circle, #8a5a20, transparent 65%); }
+:root[data-theme="glassmorphism"] .aurora-bg .ab3 { background: radial-gradient(circle, #3c4a2c, transparent 65%); }
+:root[data-theme="glassmorphism"] .aurora-bg .ab4 { background: radial-gradient(circle, #a0561e, transparent 65%); }
+/* shift the (hardcoded) violet particle motes & beams into warm hues */
+:root[data-theme="glassmorphism"] #spark-canvas,
+:root[data-theme="glassmorphism"] .bg-beam,
+:root[data-theme="glassmorphism"] .light-pillar-container { filter: hue-rotate(135deg) saturate(1.15) brightness(1.05); }
+
+/* ---- heavier frosted panels ---- */
+:root[data-theme="glassmorphism"] .card,
+:root[data-theme="glassmorphism"] .stat-card,
+:root[data-theme="glassmorphism"] .item-card,
+:root[data-theme="glassmorphism"] .chart-card,
+:root[data-theme="glassmorphism"] .settings-section,
+:root[data-theme="glassmorphism"] .auth-card {
+  background: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.045));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), var(--shadow-card);
+}
+:root[data-theme="glassmorphism"] .card:hover,
+:root[data-theme="glassmorphism"] .stat-card:hover,
+:root[data-theme="glassmorphism"] .item-card:hover,
+:root[data-theme="glassmorphism"] .chart-card:hover,
+:root[data-theme="glassmorphism"] .settings-section:hover {
+  border-color: rgba(255, 170, 100, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), var(--shadow-float);
+}
+:root[data-theme="glassmorphism"] .sidebar {
+  background: rgba(30, 20, 12, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  backdrop-filter: blur(30px) saturate(150%);
+}
+:root[data-theme="glassmorphism"] .modal {
+  background: rgba(40, 28, 17, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  backdrop-filter: blur(30px) saturate(150%);
+}
+:root[data-theme="glassmorphism"] .modal-overlay { background: rgba(10, 6, 2, 0.6); }
+
+/* ---- orange identity ---- */
+:root[data-theme="glassmorphism"] .btn-primary {
+  background: linear-gradient(115deg, #f4622a, #ff9440 70%, #ffb35c);
+  border: none; color: #fff;
+  box-shadow: 0 10px 30px rgba(255, 110, 45, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+:root[data-theme="glassmorphism"] .btn-primary:hover { box-shadow: 0 14px 40px rgba(255, 120, 50, 0.5), inset 0 1px 0 rgba(255,255,255,0.35); }
+:root[data-theme="glassmorphism"] .btn-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+:root[data-theme="glassmorphism"] .btn-ghost:hover { border-color: #ff9d5c; color: #ffb181; }
+:root[data-theme="glassmorphism"] .brand-icon {
+  background: linear-gradient(135deg, #f4622a, #ff9440);
+  box-shadow: 0 0 20px rgba(255, 130, 60, 0.45);
+}
+:root[data-theme="glassmorphism"] .sidebar-brand h1 {
+  background: var(--grad-aurora);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+:root[data-theme="glassmorphism"] .dopamine-pill {
+  background: rgba(255, 138, 77, 0.13);
+  border: 1px solid rgba(255, 150, 80, 0.35);
+  color: #ffb181;
+}
+:root[data-theme="glassmorphism"] .streak-number { color: #ffb181; text-shadow: 0 0 18px rgba(255, 140, 70, 0.45); }
+:root[data-theme="glassmorphism"] .progress-bar,
+:root[data-theme="glassmorphism"] .progress-bar-large { background: rgba(255, 255, 255, 0.08); }
+
+/* ---- inputs ---- */
+:root[data-theme="glassmorphism"] input[type="text"],
+:root[data-theme="glassmorphism"] input[type="number"],
+:root[data-theme="glassmorphism"] input[type="email"],
+:root[data-theme="glassmorphism"] input[type="password"],
+:root[data-theme="glassmorphism"] select,
+:root[data-theme="glassmorphism"] textarea {
+  background: rgba(15, 9, 4, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-primary);
+}
+:root[data-theme="glassmorphism"] input:focus,
+:root[data-theme="glassmorphism"] select:focus,
+:root[data-theme="glassmorphism"] textarea:focus { border-color: #ff9d5c; }
+:root[data-theme="glassmorphism"] select option { background: #241b12; color: var(--text-primary); }
+
+/* ---- calendar & bits ---- */
+:root[data-theme="glassmorphism"] .cal-cell.sel { background: linear-gradient(115deg, #f4622a, #ff9440); color: #fff; }
+:root[data-theme="glassmorphism"] .cal-cell.today { border-color: #ff9d5c; }
+:root[data-theme="glassmorphism"] .cal-dot { background: #ff9d5c; }
+:root[data-theme="glassmorphism"] .theme-swatch.active { border-color: #ff9d5c; box-shadow: 0 0 18px rgba(255, 140, 70, 0.3); }

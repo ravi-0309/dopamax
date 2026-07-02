@@ -1,0 +1,157 @@
+/* ============================================================
+   DOPAMAX THEME: MINIMALISM — editorial paper & ink
+   White paper · black ink · serif titles · dotted grid ·
+   flat cards, zero glow, zero glass.
+   Active when <html data-theme="minimalism"> (light mode).
+   Loaded after style.css.
+   ============================================================ */
+:root[data-theme="minimalism"] {
+  --bg-base: #f7f5f0;
+  --bg-surface: rgba(255, 255, 255, 0.92);
+  --bg-card: #ffffff;
+  --bg-elevated: #faf9f6;
+  --bg-hover: rgba(17, 17, 17, 0.05);
+  --bg-primary: #f7f5f0;
+
+  --accent: #111111;
+  --accent-dim: rgba(17, 17, 17, 0.07);
+  --accent-glow: rgba(17, 17, 17, 0.12);
+  --accent2: #6e6a63;            /* grey — keeps charts readable */
+  --accent2-dim: rgba(110, 106, 99, 0.10);
+  --accent3: #3d3b38;
+  --accent3-dim: rgba(61, 59, 56, 0.08);
+  --success: #1a7f4e; --success-dim: rgba(26, 127, 78, 0.10);
+  --danger: #b3261e;  --danger-dim: rgba(179, 38, 30, 0.10);
+  --warning: #8a6d00;
+
+  --text-primary: #161616;
+  --text-secondary: #4c4a46;
+  --text-muted: #8f8a80;
+  --text-accent: #111111;
+
+  --border: rgba(17, 17, 17, 0.13);
+  --border-subtle: rgba(17, 17, 17, 0.10);
+  --border-accent: rgba(17, 17, 17, 0.55);
+
+  --glass-blur: 0px;
+  --glass-reflect: linear-gradient(90deg, transparent 4%, rgba(17,17,17,0.05) 50%, transparent 96%);
+  --grad-aurora: linear-gradient(135deg, #111111, #111111);
+  --grad-violet: linear-gradient(135deg, #2a2a2a, #111111 55%, #000000);
+  --grad-gold: linear-gradient(135deg, #3a3a3a, #111111);
+
+  --radius: 4px;
+  --radius-sm: 3px;
+  --radius-lg: 8px;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-float: 0 14px 34px rgba(0, 0, 0, 0.10);
+  --shadow-glow: 0 0 0 rgba(0, 0, 0, 0);
+  --shadow-glow2: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+/* ---- flat paper background, dotted grid ---- */
+:root[data-theme="minimalism"] body {
+  background: var(--bg-base);
+  background-attachment: fixed;
+}
+:root[data-theme="minimalism"] body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(17,17,17,0.15) 1px, transparent 1.35px);
+  background-size: 20px 20px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 50% at 82% 0%, #000 18%, transparent 70%);
+  mask-image: radial-gradient(ellipse 70% 50% at 82% 0%, #000 18%, transparent 70%);
+}
+:root[data-theme="minimalism"] .aurora-bg,
+:root[data-theme="minimalism"] #spark-canvas,
+:root[data-theme="minimalism"] .bg-beam,
+:root[data-theme="minimalism"] .light-pillar-container { display: none !important; }
+
+/* ---- serif editorial titles ---- */
+:root[data-theme="minimalism"] .page-title,
+:root[data-theme="minimalism"] .settings-section-title,
+:root[data-theme="minimalism"] .auth-hero-headline,
+:root[data-theme="minimalism"] .empty-title,
+:root[data-theme="minimalism"] .modal-title {
+  font-family: var(--font-serif);
+  letter-spacing: 0;
+}
+
+/* ---- kill glass on all surfaces ---- */
+:root[data-theme="minimalism"] .card,
+:root[data-theme="minimalism"] .stat-card,
+:root[data-theme="minimalism"] .item-card,
+:root[data-theme="minimalism"] .chart-card,
+:root[data-theme="minimalism"] .settings-section,
+:root[data-theme="minimalism"] .modal,
+:root[data-theme="minimalism"] .sidebar,
+:root[data-theme="minimalism"] .auth-card {
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: #ffffff;
+  border: 1px solid #e5e1d8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="minimalism"] .card:hover,
+:root[data-theme="minimalism"] .stat-card:hover,
+:root[data-theme="minimalism"] .item-card:hover,
+:root[data-theme="minimalism"] .chart-card:hover,
+:root[data-theme="minimalism"] .settings-section:hover {
+  border-color: #111;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.09);
+  transform: none;
+}
+:root[data-theme="minimalism"] .sidebar { border-right: 1px solid #e5e1d8; }
+:root[data-theme="minimalism"] .edge-light { display: none; }
+
+/* ---- ink buttons ---- */
+:root[data-theme="minimalism"] .btn-primary {
+  background: #111; color: #fff; border: 1px solid #111;
+  box-shadow: none; text-shadow: none;
+}
+:root[data-theme="minimalism"] .btn-primary:hover { background: #000; box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
+:root[data-theme="minimalism"] .btn-ghost { background: #fff; border: 1px solid #111; color: #111; }
+:root[data-theme="minimalism"] .btn-ghost:hover { background: #111; color: #fff; }
+
+/* ---- purge leftover violet from light-mode rules ---- */
+:root[data-theme="minimalism"] .sidebar-brand h1 {
+  background: none; -webkit-text-fill-color: initial; color: #111;
+  font-family: var(--font-serif);
+}
+:root[data-theme="minimalism"] .brand-icon {
+  background: #111; color: #fff; box-shadow: none; border-radius: 4px;
+}
+:root[data-theme="minimalism"] .sidebar-link.active,
+:root[data-theme="minimalism"] .settings-nav-item.active { color: #111; background: rgba(17,17,17,0.06); }
+:root[data-theme="minimalism"] .sidebar-stat-value,
+:root[data-theme="minimalism"] .card-badge,
+:root[data-theme="minimalism"] .status-badge.active,
+:root[data-theme="minimalism"] .celebration-text,
+:root[data-theme="minimalism"] .tag-custom { color: #111; }
+:root[data-theme="minimalism"] .stat-value.accent,
+:root[data-theme="minimalism"] .progress-value,
+:root[data-theme="minimalism"] .item-meta-value.accent { color: #111; text-shadow: none; }
+:root[data-theme="minimalism"] .dopamine-pill {
+  background: #fff; border: 1px solid #111; color: #111; box-shadow: none;
+}
+:root[data-theme="minimalism"] .streak-number { color: #111; text-shadow: none; }
+
+/* ---- inputs & small pieces ---- */
+:root[data-theme="minimalism"] input[type="text"],
+:root[data-theme="minimalism"] input[type="number"],
+:root[data-theme="minimalism"] input[type="email"],
+:root[data-theme="minimalism"] input[type="password"],
+:root[data-theme="minimalism"] select,
+:root[data-theme="minimalism"] textarea {
+  background: #fff; border: 1px solid rgba(17,17,17,0.25); color: #161616;
+}
+:root[data-theme="minimalism"] input:focus,
+:root[data-theme="minimalism"] select:focus,
+:root[data-theme="minimalism"] textarea:focus { border-color: #111; box-shadow: none; }
+:root[data-theme="minimalism"] .progress-bar,
+:root[data-theme="minimalism"] .progress-bar-large { background: #efece5; }
+:root[data-theme="minimalism"] .theme-swatch.active { border-color: #111; box-shadow: none; }
+:root[data-theme="minimalism"] .toggle-slider { box-shadow: none; }
+:root[data-theme="minimalism"] .modal-overlay { background: rgba(30, 28, 24, 0.45); backdrop-filter: blur(3px); }
+:root[data-theme="minimalism"] .cal-cell.sel { background: #111; color: #fff; }
+:root[data-theme="minimalism"] .cal-cell.today { border-color: #111; }
+:root[data-theme="minimalism"] .cal-dot { background: #111; }
+:root[data-theme="minimalism"] .empty-icon { filter: grayscale(1); }

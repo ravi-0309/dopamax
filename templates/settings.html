@@ -212,7 +212,9 @@
                  ('sunset','Sunset','ember','#fb7185','#fbbf24','#fb923c'),
                  ('midnight','Midnight','deep blue','#3b82f6','#38bdf8','#818cf8'),
                  ('cyber','Cyber','neon','#22d3ee','#a855f7','#f472b6'),
-                 ('liquid','Liquid Glass','refraction','#a9b4ff','#7df0ff','#ff9ffc')
+                 ('liquid','Liquid Glass','refraction','#a9b4ff','#7df0ff','#ff9ffc'),
+                 ('minimalism','Minimalism','paper / ink','#111111','#6e6a63','#f7f5f0'),
+                 ('glassmorphism','Glassmorphism','warm glass','#ff8a4d','#ffc46b','#3c2c1a')
               ] %}
               <button type="button" class="theme-swatch" data-theme="{{ tid }}" onclick="setTheme('{{ tid }}')">
                 <span class="theme-chips"><i style="background:{{ c1 }}"></i><i style="background:{{ c2 }}"></i><i style="background:{{ c3 }}"></i></span>
@@ -339,7 +341,7 @@ function prepareForm() {
 }
 
 // ===== Theme switch (12 palettes, light/dark mode aware) =====
-const LIGHT_THEMES = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1 };
+const LIGHT_THEMES = { light:1, pastel:1, ocean:1, crimson:1, rose:1, sand:1, mono:1, minimalism:1 };
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   document.documentElement.setAttribute('data-mode', LIGHT_THEMES[theme] ? 'light' : 'dark');
